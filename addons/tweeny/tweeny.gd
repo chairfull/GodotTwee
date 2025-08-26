@@ -34,6 +34,7 @@ const T_WARP := &"WARP" # TODO:
 @export var default_event_signal_or_method := &"event" ## Will attempt to pass "string" events to this.
 @export_storage var _script: GDScript
 @export_storage var _method_count: int
+var _properties: Dictionary[StringName, Dictionary]
 @export_tool_button("Test") var test := func():
 	var toks := _tokenize(tween)
 	var pars := _parse(toks)
@@ -41,7 +42,16 @@ const T_WARP := &"WARP" # TODO:
 	print(JSON.stringify(pars[0], "\t", false))
 	#DisplayServer.clipboard_set(JSON.stringify(pars[0], "\t", false))
 
+func get_property_type(node: Node, prop: StringName) -> int:
+	if not prop in _properties:
+		for p in node.get_property_list():
+			if p.name == prop:
+				_properties[prop] = p.type
+				return p.type
+	return _properties.get(prop, TYPE_NIL)
+
 func run(node: Node, tween_prop: StringName):
+	_properties = {}
 	_script = GDScript.new()
 	_script.source_code += "static var node: Node"
 	_method_count = 0
@@ -104,7 +114,7 @@ func to_tween(node: Node, tween_prop: Variant, steps: Array) -> Tween:
 				for prop in step.props:
 					var prop_info: Dictionary = step.props[prop]
 					var pt: Tweener
-					match prop_info.get(&"rel"):
+					match prop_info.get(&"rel", T_REL_RUNTIME):
 						T_REL:
 							var result := _eval(prop_info.val)
 							pt = sub.tween_property(node, prop, result, duration).as_relative()
@@ -116,6 +126,7 @@ func to_tween(node: Node, tween_prop: Variant, steps: Array) -> Tween:
 							vars[prop+"_a"] = node.get_indexed(prop)
 							vars[prop+"_b"] = node.get_indexed(prop)
 							sub.tween_callback(func():
+								#print("update")
 								var a := node.get_indexed(prop)
 								var b := _eval(prop_info.val)
 								vars[prop + "_a"] = a
@@ -123,6 +134,7 @@ func to_tween(node: Node, tween_prop: Variant, steps: Array) -> Tween:
 							pt = sub.tween_method(func(t: float):
 								var a: Variant = vars[prop + "_a"]
 								var b: Variant = vars[prop + "_b"]
+								#prints(prop, a, b)
 								node.set_indexed(prop, lerp(a, b, t)), 0.0, 1.0, duration)
 						_:
 							var result := _eval(prop_info.val)
@@ -155,24 +167,17 @@ func to_tween(node: Node, tween_prop: Variant, steps: Array) -> Tween:
 								"SPRING": pt.set_trans(Tween.TRANS_SPRING)
 				twn.tween_subtween(sub)
 			T_PROPERTIES:
-				if twn:
-					twn.tween_callback(func():
-						for prop in step.props:
-							var prop_info: Dictionary = step.props[prop]
-							var result := _eval(prop_info.val)#_convert(node, prop, prop_info.vals)
-							match prop_info.get(&"rel"):
-								T_REL: node.set_indexed(prop, node.get_indexed(prop) + result)
-								T_REL: node.set_indexed(prop, node.get_indexed(prop) - result)
-								_: node.set_indexed(prop, result)
-							)
-				else:
+				if not twn:
+					twn = _tween(node, tween_prop)
+				twn.tween_callback(func():
 					for prop in step.props:
 						var prop_info: Dictionary = step.props[prop]
-						var result := _eval(prop_info.val)#_convert(node, prop, prop_info.vals)
+						var result := _eval(prop_info.val)
 						match prop_info.get(&"rel"):
 							T_REL: node.set_indexed(prop, node.get_indexed(prop) + result)
-							T_REL_NEG: node.set_indexed(prop, node.get_indexed(prop) - result)
+							T_REL: node.set_indexed(prop, node.get_indexed(prop) - result)
 							_: node.set_indexed(prop, result)
+						)
 	return twn
 
 static func _tween(node: Node, tween_prop: Variant) -> Tween:

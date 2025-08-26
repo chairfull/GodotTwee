@@ -7,8 +7,8 @@ Create tweens fast and easy.
 
 ```rpy
 position (0, 0) modulate Color.WHITE
-LINEAR position (100, 0) modulate ! lerp(Color.RED, Color.GREEN, randf())
-LINEAR position ! (randf_range(-100, 100), 20.0) modulate Color.WHITE
+LINEAR position (100, 0) modulate lerp(Color.RED, Color.GREEN, randf())
+LINEAR position (randf_range(-100, 100), 20.0) modulate Color.WHITE
 ```
 
 Rig signal based animations in a snap.
@@ -87,18 +87,6 @@ LINEAR 1.0 rotation_degrees + 90 position (0, 0)
 LINEAR 1.0 rotation_degrees + 90 position (200, 0)
 LINEAR 1.0 rotation_degrees + 90 position (200, 200)
 LINEAR 1.0 rotation_degrees + 90 position (0, 200)
-```
-
-## Runtime Properties
-The `!` symbol before a value says to retrieve it at runtime. Good for randomizing.
-
-```rpy
-PLL:
-	E rotation ! randf_range(-PI, PI)
-	LOOP
-PLL:
-	E position ! (randf_range(-100, 100), randf_range(100, 100))
-	LOOP
 ```
 
 ## Functions & Expressions
@@ -216,7 +204,7 @@ L position (100, 0)
 ```
 
 # Random Esoteric Features
-- `rotation` will use `lerp_angle()` if no relative tokens (`+` `!` `-`) are being used.
+- `rotation` will use `lerp_angle()` if no relative tokens (`+` `-`) are being used.
 
 # To-Do
 - Call functions.
