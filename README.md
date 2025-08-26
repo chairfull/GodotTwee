@@ -1,16 +1,16 @@
-# Tweeny v1.0
+# Tweeny v0.1 Early Dev Version
 Requires `Godot 4.5+`
 
-Inspired by [Ren'Py's transform system](https://www.renpy.org/doc/html/transforms.html).
+Inspired by [Ren'Py's transform system](https://www.renpy.org/doc/html/transforms.html) and built off [Godots tween system](https://docs.godotengine.org/en/4.4/classes/class_tween.html).
 
 Create tweens fast and easy.
 
 ```rpy
-position 0.0 0.0 modulate Color.WHITE
-LINEAR 1.0 position 0.0 100.0
-LINEAR 1.0 position 100.0 100.0
-LINEAR 1.0 position 100.0 0.0
-LINEAR 1.0 position 0.0 0.0
+position 0 0 modulate Color.WHITE
+LINEAR position 0.0 100.0 modulate Color.RED
+LINEAR position 100.0 100.0 modulate Color.WHITE
+LINEAR position 100.0 0.0 modulate Color.RED
+LINEAR position 0.0 0.0 modulate Color.WHITE
 ```
 
 Rig signal based animations in a snap.
@@ -172,6 +172,8 @@ LINEAR 1 position 0 0
 LINEAR 1 position 100 0
 ```
 
-# To-do
+# To-Do
+- Call functions.
+- Set properties with variables.
 - Better error handling.
 - Allow comments.

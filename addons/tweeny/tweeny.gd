@@ -1,10 +1,29 @@
 @tool
 class_name Tweeny extends Resource
 
+const T_INDENT := &"INDENT"
+const T_DEDENT := &"DEDENT"
+const T_NEWLINE := &"NEWLINE"
+const T_COLON := &":"
+const T_LOOP := &"LOOP"
+const T_WAIT := &"WAIT"
+const T_STRING := &"STR"
+const T_BLOCK := &"BLOCK"
+const T_PARALLEL := &"PARALLEL"
+const T_ON := &"ON"
+const T_PROPERTIES_TWEENED := &"PROPS_TWEENED"
+const T_PROPERTIES := &"PROPS"
+const T_CHOICE := &"CHOICE" # TODO:
+const T_WARP := &"WARP" # TODO:
+const T_RELATIVE := &"+"
+const T_RELATIVE_NEG := &"-"
+
 @export_custom(PROPERTY_HINT_EXPRESSION, "") var tween: String:
 	set(t):
 		tween = t
 		changed.emit()
+
+@export_group("Defaults", "default_")
 @export var default_tween_duration := 1.0 ## Default seconds to tween if a duration wasn't explicitly given.
 @export var default_pause_duration := 1.0 ## Default seconds to wait if WAIT wasn't explicitly given.
 @export var default_event_signal_or_method := &"event" ## Will attempt to pass "string" events to this.
@@ -21,39 +40,39 @@ func run(node: Node, tween_prop: StringName):
 	var steps: Array = _parse(_tokenize(tween))[0]
 	to_tween(node, tween_prop, steps)
 
-func to_tween(node: Node, tween_prop: Variant, steps: Array) -> Tween:
+static func to_tween(node: Node, tween_prop: Variant, steps: Array) -> Tween:
 	var twn: Tween = null
 	for step in steps:
 		match step.type:
-			&"ON":
+			T_ON:
 				for signal_id in step.args:
 					node[signal_id].connect(func(): to_tween(node, tween_prop, step.children))
-			&"PARALLEL":
+			T_PARALLEL:
 				if not twn:
 					twn = _tween(node, tween_prop)
 				twn.set_parallel()
 				to_tween(node, twn, step.children)
-			&"BLOCK":
+			T_BLOCK:
 				if not twn:
 					twn = _tween(node, tween_prop)
 				to_tween(node, twn, step.children)
-			&"LOOP":
+			T_LOOP:
 				if twn:
 					twn.set_loops(step.loop)
 				else:
 					push_error("No tween to repeat.")
-			&"WAIT":
+			T_WAIT:
 				if not twn:
 					twn = _tween(node, tween_prop)
 				twn.tween_interval(step.wait)
-			&"STRING":
+			T_STRING:
 				if node.has_signal(&"event"):
 					if not twn:
 						twn = _tween(node, tween_prop)
 					twn.tween_callback(node.event.emit.bind(step.value))
 				else:
 					push_warning("No event signal to emit.")
-			&"STEP":
+			T_PROPERTIES_TWEENED:
 				if not twn:
 					twn = _tween(node, tween_prop)
 				var duration: float = step.duration
@@ -63,15 +82,14 @@ func to_tween(node: Node, tween_prop: Variant, steps: Array) -> Tween:
 					var prop_info: Dictionary = step.props[prop]
 					var result := _convert(node, prop, prop_info.vals)
 					var pt: PropertyTweener
-					match prop_info.get("relative"):
-						"+": pt = sub.tween_property(node, prop, result, duration).as_relative()
-						"-": pt = sub.tween_property(node, prop, -result, duration).as_relative()
+					match prop_info.get(&"relative"):
+						T_RELATIVE: pt = sub.tween_property(node, prop, result, duration).as_relative()
+						T_RELATIVE_NEG: pt = sub.tween_property(node, prop, -result, duration).as_relative()
 						_: pt = sub.tween_property(node, prop, result, duration)
 					var mode: StringName = step.get(&"mode", &"LINEAR")
 					#print(mode, prop_inf)
 					if mode != &"LINEAR" and mode != &"L":
 						var parts := mode.split("_", true, 1)
-						print(parts)
 						match parts[0]:
 							"EASE", "E": pt.set_trans(Tween.TRANS_SINE)
 							"EASEIN", "EI": pt.set_ease(Tween.EASE_IN)
@@ -93,28 +111,28 @@ func to_tween(node: Node, tween_prop: Variant, steps: Array) -> Tween:
 								"BACK": pt.set_trans(Tween.TRANS_BACK)
 								"SPRING": pt.set_trans(Tween.TRANS_SPRING)
 				twn.tween_subtween(sub)
-			"PROPERTIES":
+			T_PROPERTIES:
 				if twn:
 					twn.tween_callback(func():
 						for prop in step.props:
 							var prop_info: Dictionary = step.props[prop]
 							var result := _convert(node, prop, prop_info.vals)
-							match prop_info.get("relative", ""):
-								"+": node[prop] += _convert(node, prop, result)
-								"-": node[prop] -= _convert(node, prop, result)
-								"": node[prop] = _convert(node, prop, result)
+							match prop_info.get(&"relative"):
+								T_RELATIVE: node[prop] += result
+								T_RELATIVE_NEG: node[prop] -= result
+								_: node[prop] = result
 							)
 				else:
 					for prop in step.props:
 						var prop_info: Dictionary = step.props[prop]
 						var result := _convert(node, prop, prop_info.vals)
-						match prop_info.get("relative", ""):
-							"+": node[prop] += _convert(node, prop, result)
-							"-": node[prop] -= _convert(node, prop, result)
-							"": node[prop] = _convert(node, prop, result)
+						match prop_info.get(&"relative"):
+							T_RELATIVE: node[prop] += result
+							T_RELATIVE_NEG: node[prop] -= result
+							_: node[prop] = result
 	return twn
 
-func _tween(node: Node, tween_prop: Variant) -> Tween:
+static func _tween(node: Node, tween_prop: Variant) -> Tween:
 	if tween_prop is StringName:
 		if node[tween_prop]: node[tween_prop].kill()
 		node[tween_prop] = node.create_tween()
@@ -125,7 +143,7 @@ func _tween(node: Node, tween_prop: Variant) -> Tween:
 		return twn
 	return null
 
-func _convert(node: Node, prop: StringName, val: Array) -> Variant:
+static func _convert(node: Node, prop: StringName, val: Array) -> Variant:
 	var type := typeof(node[prop])
 	var got: Variant
 	match type:
@@ -135,14 +153,13 @@ func _convert(node: Node, prop: StringName, val: Array) -> Variant:
 			got = Vector3(val[0], val[1], val[2])
 		_:
 			got = val[0]
-	prints("Converted %s:%s %s -> %s" % [prop, type_string(type), val, got])
+	#prints("Converted %s:%s %s -> %s" % [prop, type_string(type), val, got])
 	return got
 
-func _tokenize(src: String) -> PackedStringArray:
+static func _tokenize(src: String) -> PackedStringArray:
 	var tokens := PackedStringArray()
 	var lines := src.split("\n", false)
 	var indent_stack := [0]
-
 	for line in lines:
 		if line.strip_edges().is_empty():
 			continue
@@ -150,12 +167,11 @@ func _tokenize(src: String) -> PackedStringArray:
 		var indent := line.length() - stripped.length()
 		if indent > indent_stack[-1]:
 			indent_stack.append(indent)
-			tokens.append("INDENT")
+			tokens.append(T_INDENT)
 		elif indent < indent_stack[-1]:
 			while indent < indent_stack[-1]:
 				indent_stack.pop_back()
-				tokens.append("DEDENT")
-
+				tokens.append(T_DEDENT)
 		var pattern := RegEx.new()
 		pattern.compile(r'("[^"]*"|\d+\.\d+|\d+|[a-zA-Z_][\w\.]*|:|\+|\-)')
 		var pos := 0
@@ -164,12 +180,10 @@ func _tokenize(src: String) -> PackedStringArray:
 			if m == null: break
 			tokens.append(m.get_string())
 			pos = m.get_end()
-		tokens.append("NEWLINE")
-
+		tokens.append(T_NEWLINE)
 	while indent_stack.size() > 1:
 		indent_stack.pop_back()
-		tokens.append("DEDENT")
-
+		tokens.append(T_DEDENT)
 	return tokens
 
 func _parse(tokens: PackedStringArray, i := 0) -> Array:
@@ -179,20 +193,20 @@ func _parse(tokens: PackedStringArray, i := 0) -> Array:
 		var t := tokens[i]
 
 		# consume top-level newlines quickly
-		if t == "NEWLINE":
+		if t == T_NEWLINE:
 			i += 1
 			continue
 
 		# End of block
-		if t == "DEDENT":
+		if t == T_DEDENT:
 			i += 1
 			break
 		
-		if t == &"LOOP":
-			commands.append({ type=&"LOOP", loop=0 })
+		if t == T_LOOP:
+			commands.append({ type=T_LOOP, loop=0 })
 			i += 1
 			var args := []
-			while i < tokens.size() and tokens[i] != "NEWLINE":
+			while i < tokens.size() and tokens[i] != T_NEWLINE:
 				args.append(tokens[i])
 				i += 1
 			if args:
@@ -200,57 +214,57 @@ func _parse(tokens: PackedStringArray, i := 0) -> Array:
 			continue
 		
 		# block-like keywords with optional args (block, parallel, choice, on)
-		if t in ["BLOCK", "PARALLEL", "CHOICE", "ON"]:
+		if t in [ T_BLOCK, T_PARALLEL, T_CHOICE, T_ON ]:
 			var keyword := t
 			i += 1
 			var args := []
 			# collect tokens until colon (or we hit end)
-			while i < tokens.size() and tokens[i] != ":":
-				if tokens[i] != "NEWLINE":
+			while i < tokens.size() and tokens[i] != T_COLON:
+				if tokens[i] != T_NEWLINE:
 					args.append(tokens[i])
 				i += 1
 			# skip colon if present
-			if i < tokens.size() and tokens[i] == ":":
+			if i < tokens.size() and tokens[i] == T_COLON:
 				i += 1
 			# skip NEWLINEs after colon
-			while i < tokens.size() and tokens[i] == "NEWLINE":
+			while i < tokens.size() and tokens[i] == T_NEWLINE:
 				i += 1
 			# only parse nested block if there's an INDENT
-			if i < tokens.size() and tokens[i] == "INDENT":
+			if i < tokens.size() and tokens[i] == T_INDENT:
 				i += 1
-				var block := { "type": keyword, "args": args }
+				var block := { type=keyword, args=args }
 				var got := _parse(tokens, i)
 				block.children = got[0]
 				commands.append(block)
 				i = got[1]
 				continue
 			# no INDENT -> treat as empty block/attribute container
-			commands.append({ "type": keyword, "args": args, "children": [] })
+			commands.append({ type=keyword, args=args, children=[] })
 			continue
 		
 		# Pause.
-		if t == &"WAIT":
-			commands.append({ type=&"WAIT", wait=default_pause_duration })
+		if t == T_WAIT:
+			commands.append({ type=T_WAIT, wait=default_pause_duration })
 			i += 1
 			continue
 		
 		# Pause (lone float)
 		if t.is_valid_float():
-			commands.append({ type=&"WAIT", wait=float(t) })
+			commands.append({ type=T_WAIT, wait=float(t) })
 			i += 1
 			continue
 		
 		# String event.
 		if t.begins_with('"') and t.ends_with('"'):
-			commands.append({ "type":"STRING","value":t.trim_prefix('"').trim_suffix('"') })
+			commands.append({ type=T_STRING, value=t.trim_prefix('"').trim_suffix('"') })
 			i += 1
 			continue
 		
 		# TODO: Warp
-		if t == "WARP":
+		if t == T_WARP:
 			i += 1
 			if i < tokens.size():
-				commands.append({ "type":"WARP","expr":tokens[i] })
+				commands.append({ type=T_WARP, expr=tokens[i] })
 				i += 1
 			continue
 		
@@ -260,7 +274,7 @@ func _parse(tokens: PackedStringArray, i := 0) -> Array:
 			t.begins_with("EI_") or t.begins_with("EASEIN_") or\
 			t.begins_with("EO_") or t.begins_with("EASEOUT_") or\
 			t.begins_with("EOI_") or t.begins_with("EASEOUTIN_"):
-			var cmd := { "type": "STEP", "mode": t, "duration": default_tween_duration, "props": {} }
+			var cmd := { type=T_PROPERTIES_TWEENED, mode=t, duration=default_tween_duration, props={} }
 			i += 1
 			# optional duration
 			if i < tokens.size() and tokens[i].is_valid_float():
@@ -277,27 +291,24 @@ func _parse(tokens: PackedStringArray, i := 0) -> Array:
 		# ensure token is a non-keyword identifier before calling _parse_props
 		if _is_valid_property(t):
 			var got := _parse_props(tokens, i)
-			var cmd := { "type":"PROPERTIES", "props": got[0] }
+			var cmd := { type=T_PROPERTIES, props=got[0] }
 			i = got[1]
 			commands.append(cmd)
 			continue
 
 		# fallback: consume one token to avoid infinite loops
 		i += 1
-
 	return [commands, i]
 
-
-func _parse_props(tokens: PackedStringArray, i: int) -> Array:
+static func _parse_props(tokens: PackedStringArray, i: int) -> Array:
 	var props := {}
 	var start_i := i
 	
 	# loop until a structural token, keyword, or end
 	while i < tokens.size():
 		var token := tokens[i]
-		
 		# stop if we hit structural markers or keywords
-		if token in ["PARALLEL","CHOICE","BLOCK","ON","WARP","INDENT","DEDENT","NEWLINE", ":"]:
+		if token in [T_PARALLEL, T_CHOICE, T_BLOCK, T_ON, T_WARP, T_INDENT, T_DEDENT, T_NEWLINE, T_COLON ]:
 			break
 
 		# skip unknown / non-identifiers safely to guarantee progress
@@ -307,18 +318,18 @@ func _parse_props(tokens: PackedStringArray, i: int) -> Array:
 
 		# consume property name
 		var vals := []
-		var prop := { "vals": vals }
+		var prop := { vals=vals }
 		i += 1
 		
 		# gather values until next identifier/keyword/structure
 		while i < tokens.size():
 			var v := tokens[i]
-			if v in ["PARALLEL","CHOICE","BLOCK","ON","WARP","INDENT","DEDENT","NEWLINE", ":"] or _is_valid_property(v):
+			if v in [ T_PARALLEL, T_CHOICE, T_BLOCK, T_ON, T_WARP, T_INDENT, T_DEDENT, T_NEWLINE, T_COLON ] or _is_valid_property(v):
 				break
-			if v == "+":
-				prop.relative = "+"
-			elif v == "-":
-				prop.relative = "-"
+			if v == T_RELATIVE:
+				prop.relative = T_RELATIVE
+			elif v == T_RELATIVE_NEG:
+				prop.relative = T_RELATIVE_NEG
 			# type conversions
 			elif v.is_valid_float():
 				vals.append(float(v))
@@ -342,14 +353,10 @@ func _parse_props(tokens: PackedStringArray, i: int) -> Array:
 			i += 1
 		
 		props[token] = prop
-	
 	# safety net: if we didn't consume anything, advance to avoid infinite loop
 	if i == start_i:
 		i += 1
-
 	return [props, i]
 
-func _is_valid_property(t: String) -> bool:
+static func _is_valid_property(t: String) -> bool:
 	return t.is_valid_identifier()
-	#if t.ends_with("+"): return t.trim_suffix("+").is_valid_identifier()
-	#return t.is_valid_identifier()
