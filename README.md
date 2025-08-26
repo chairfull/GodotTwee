@@ -1,16 +1,16 @@
 # Tweeny v0.1 Early Dev Version
 Requires `Godot 4.5+`
 
-Inspired by [Ren'Py's transform system](https://www.renpy.org/doc/html/transforms.html) and built off [Godots tween system](https://docs.godotengine.org/en/4.4/classes/class_tween.html).
+Inspired by [Ren'Py's transform system](https://www.renpy.org/doc/html/transforms.html) and built off [Godot's tween system](https://docs.godotengine.org/en/4.4/classes/class_tween.html).
 
 Create tweens fast and easy.
 
 ```rpy
-position 0 0 modulate Color.WHITE
-LINEAR position 0.0 100.0 modulate Color.RED
-LINEAR position 100.0 100.0 modulate Color.WHITE
-LINEAR position 100.0 0.0 modulate Color.RED
-LINEAR position 0.0 0.0 modulate Color.WHITE
+position (0, 0) modulate Color.WHITE
+LINEAR position (0, 100) modulate Color.RED
+LINEAR position (100, 100) modulate Color.WHITE
+LINEAR position (100, 0) modulate Color.RED
+LINEAR position (0, 0) modulate Color.WHITE
 ```
 
 Rig signal based animations in a snap.
@@ -36,7 +36,7 @@ ON pressed:
 Write the name of a nodes properties, followed by the value to set. Multiple properties can share a line.
 
 ```rpy
-position 0 0
+position (0, 0)
 modulate Color.RED
 ```
 
@@ -45,18 +45,18 @@ For relative properties, follow the name with a `+` or `-`
 Here position is getting added, rotation subtracted, and modulate is absolute.
 
 ```rpy
-position + 100 100 rotation_degrees - 90 modulate Color.WHITE
+position + (100, 100) rotation_degrees - 90 modulate Color.WHITE
 ```
 
 ## Animating Properties
 Use `LINEAR` or `L` to animate a property linearly. Default duration is 1 second unless defined.
 
 ```rpy
-position 0 0
-LINEAR position 100 0
-LINEAR position 100 100
-LINEAR position 0 100
-LINEAR 2 position 100 0 
+position (0, 0)
+LINEAR position (100, 0)
+LINEAR position (100, 100)
+LINEAR position (0, 100)
+LINEAR 2 position (100, 0) 
 ```
 
 Uses Godot's [transitions](https://docs.godotengine.org/en/4.4/classes/class_tween.html#enum-tween-transitiontype) and [easing](https://docs.godotengine.org/en/4.4/classes/class_tween.html#enum-tween-easetype).
@@ -85,10 +85,33 @@ To have a property change be relative to current use `+` or `-` after the name.
 Here the object has a relative rotation but an absolute position animation.
 
 ```rpy
-LINEAR 1.0 rotation_degrees + 90 position 0 0
-LINEAR 1.0 rotation_degrees + 90 position 200 0
-LINEAR 1.0 rotation_degrees + 90 position 200 200
-LINEAR 1.0 rotation_degrees + 90 position 0 200
+LINEAR 1.0 rotation_degrees + 90 position (0, 0)
+LINEAR 1.0 rotation_degrees + 90 position (200, 0)
+LINEAR 1.0 rotation_degrees + 90 position (200, 200)
+LINEAR 1.0 rotation_degrees + 90 position (0, 200)
+```
+
+## Runtime Properties
+The `@` symbol before a value says to retrieve it at runtime. Good for randomizing.
+
+```rpy
+PLL:
+	E rotation @ randf_range(-PI, PI)
+	LOOP
+PLL:
+	E position @ (randf_range(-100, 100), randf_range(100, 100))
+	LOOP
+```
+
+## Functions & Expressions
+You can call built in functions or include expressions inside `()`.
+
+```rpy
+E rotation deg_to_rad(0)
+E rotation deg_to_rad(90)
+E rotation deg_to_rad(90 + 90)
+E rotation deg_to_rad(90 * 3)
+LOOP
 ```
 
 ## Event Message
@@ -97,9 +120,9 @@ If your node has an `event` signal or method, you can emit it with `"strings"`
 Edit `default_event_signal_or_method` to change.
 
 ```rpy
-LINEAR 1.0 position 0 0
+LINEAR 1.0 position (0, 0)
 "At Top Left"
-LINEAR 1.0 position 100 100
+LINEAR 1.0 position (100, 100)
 "Reached bottom right"
 ```
 
@@ -112,11 +135,11 @@ When a signal is emitted, other tweens will be ended/killed.
 
 ```rpy
 ON mouse_entered:
-	LINEAR 1.0 modulate Color.YELLOW
+	L modulate Color.YELLOW
 ON mouse_exited:
-	LINEAR 1.0 modulate Color.WHITE
+	L modulate Color.WHITE
 ON pressed:
-	LINEAR 1.0 modulate Color.TOMATO
+	L modulate Color.TOMATO
 ```
 
 ## LOOP
@@ -137,16 +160,16 @@ LINEAR 1 position 0 0
 
 # 3 time patrol.
 BLOCK:
-	LINEAR 1 position 100 100
-	LINEAR 1 position 200 100
+	LINEAR 1 position (100, 100)
+	LINEAR 1 position (200, 100)
 	REPEAT 3
 
 # Back to home.
-LINEAR 1 position 0 0
+LINEAR 1 position (0, 0)
 ```
 
 ## PARALLEL
-Runs commands parallel to each other.
+Runs commands parallel to each other. Can write `PLL` for short.
 
 ```rpy
 PARALLEL:
@@ -165,16 +188,19 @@ PARALLEL:
 Simply passing a float `1.0` is enough. Or you can type `WAIT`.
 
 ```rpy
-L position 100 100
+L position (100, 100)
 
 WAIT # Waits 1 second by default.
 
-L position 0 0
+L position (0, 0)
 
 2 # Wait 2 seconds.
 
-L position 100 0
+L position (100, 0)
 ```
+
+# Random Esoteric Features
+- `rotation` will use `lerp_angle()` if no relative tokens (`+` or `-`) are being used.
 
 # To-Do
 - Call functions.

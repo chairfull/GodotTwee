@@ -10,13 +10,18 @@ const T_WAIT := &"WAIT"
 const T_STRING := &"STR"
 const T_BLOCK := &"BLOCK"
 const T_PARALLEL := &"PARALLEL"
+const T_PARALLEL_SHORT := &"PLL"
 const T_ON := &"ON"
 const T_PROPERTIES_TWEENED := &"PROPS_TWEENED"
 const T_PROPERTIES := &"PROPS"
+const T_REL := &"+"
+const T_REL_NEG := &"-"
+const T_REL_RUNTIME := &"!"
+const T_SPACE := &"SPACE"
+
+const T_PASS := &"PASS" # TODO:
 const T_CHOICE := &"CHOICE" # TODO:
 const T_WARP := &"WARP" # TODO:
-const T_RELATIVE := &"+"
-const T_RELATIVE_NEG := &"-"
 
 @export_custom(PROPERTY_HINT_EXPRESSION, "") var tween: String:
 	set(t):
@@ -27,17 +32,24 @@ const T_RELATIVE_NEG := &"-"
 @export var default_tween_duration := 1.0 ## Default seconds to tween if a duration wasn't explicitly given.
 @export var default_pause_duration := 1.0 ## Default seconds to wait if WAIT wasn't explicitly given.
 @export var default_event_signal_or_method := &"event" ## Will attempt to pass "string" events to this.
-
-@export var _target: NodePath
+@export_storage var _script: GDScript
+@export_storage var _method_count: int
 @export_tool_button("Test") var test := func():
 	var toks := _tokenize(tween)
 	var pars := _parse(toks)
 	print(toks)
 	print(JSON.stringify(pars[0], "\t", false))
-	#DisplayServer.clipboard_set(JSON.stringify(pars[0], "\t", false))
+	DisplayServer.clipboard_set(JSON.stringify(pars[0], "\t", false))
 
 func run(node: Node, tween_prop: StringName):
+	_script = GDScript.new()
+	_script.source_code += "static var node: Node"
+	_method_count = 0
 	var steps: Array = _parse(_tokenize(tween))[0]
+	_script.source_code = _script.source_code.replace("@", "node.")
+	print(_script.source_code)
+	_script.reload()
+	_script.node = node
 	to_tween(node, tween_prop, steps)
 
 func to_tween(node: Node, tween_prop: Variant, steps: Array) -> Tween:
@@ -57,6 +69,7 @@ func to_tween(node: Node, tween_prop: Variant, steps: Array) -> Tween:
 					twn = _tween(node, tween_prop)
 				to_tween(node, twn, step.children)
 			T_LOOP:
+				prints("LOOP", step)
 				if twn:
 					twn.set_loops(step.loop)
 				else:
@@ -86,14 +99,34 @@ func to_tween(node: Node, tween_prop: Variant, steps: Array) -> Tween:
 				sub.set_parallel()
 				for prop in step.props:
 					var prop_info: Dictionary = step.props[prop]
-					var result := _convert(node, prop, prop_info.vals)
-					var pt: PropertyTweener
-					match prop_info.get(&"relative"):
-						T_RELATIVE: pt = sub.tween_property(node, prop, result, duration).as_relative()
-						T_RELATIVE_NEG: pt = sub.tween_property(node, prop, -result, duration).as_relative()
-						_: pt = sub.tween_property(node, prop, result, duration)
+					var pt: Tweener
+					match prop_info.get(&"rel"):
+						T_REL:
+							var result := _eval(prop_info.val)
+							pt = sub.tween_property(node, prop, result, duration).as_relative()
+						T_REL_NEG: 
+							var result := _eval(prop_info.val)
+							pt = sub.tween_property(node, prop, -result, duration).as_relative()
+						T_REL_RUNTIME:
+							var vars := {}
+							vars[prop+"_a"] = node.get_indexed(prop)
+							vars[prop+"_b"] = node.get_indexed(prop)
+							sub.tween_callback(func():
+								var a := node.get_indexed(prop)
+								var b := _eval(prop_info.val)
+								vars[prop + "_a"] = a
+								vars[prop + "_b"] = b if b != null else a)
+							pt = sub.tween_method(func(t: float):
+								var a: Variant = vars[prop + "_a"]
+								var b: Variant = vars[prop + "_b"]
+								node.set_indexed(prop, lerp(a, b, t)), 0.0, 1.0, duration)
+						_:
+							var result := _eval(prop_info.val)
+							if prop in ["rotation"]:
+								pt = sub.tween_method(func(t: float): node.set_indexed(prop, lerp_angle(node.get_indexed(prop), result, t)), 0.0, 1.0, duration)
+							else:
+								pt = sub.tween_property(node, prop, result, duration)
 					var mode: StringName = step.get(&"mode", &"LINEAR")
-					#print(mode, prop_inf)
 					if mode != &"LINEAR" and mode != &"L":
 						var parts := mode.split("_", true, 1)
 						match parts[0]:
@@ -122,19 +155,19 @@ func to_tween(node: Node, tween_prop: Variant, steps: Array) -> Tween:
 					twn.tween_callback(func():
 						for prop in step.props:
 							var prop_info: Dictionary = step.props[prop]
-							var result := _convert(node, prop, prop_info.vals)
-							match prop_info.get(&"relative"):
-								T_RELATIVE: node.set_indexed(prop, node.get_indexed(prop) + result)
-								T_RELATIVE_NEG: node.set_indexed(prop, node.get_indexed(prop) - result)
+							var result := _eval(prop_info.val)#_convert(node, prop, prop_info.vals)
+							match prop_info.get(&"rel"):
+								T_REL: node.set_indexed(prop, node.get_indexed(prop) + result)
+								T_REL: node.set_indexed(prop, node.get_indexed(prop) - result)
 								_: node.set_indexed(prop, result)
 							)
 				else:
 					for prop in step.props:
 						var prop_info: Dictionary = step.props[prop]
-						var result := _convert(node, prop, prop_info.vals)
-						match prop_info.get(&"relative"):
-							T_RELATIVE: node.set_indexed(prop, node.get_indexed(prop) + result)
-							T_RELATIVE_NEG: node.set_indexed(prop, node.get_indexed(prop) - result)
+						var result := _eval(prop_info.val)#_convert(node, prop, prop_info.vals)
+						match prop_info.get(&"rel"):
+							T_REL: node.set_indexed(prop, node.get_indexed(prop) + result)
+							T_REL_NEG: node.set_indexed(prop, node.get_indexed(prop) - result)
 							_: node.set_indexed(prop, result)
 	return twn
 
@@ -148,19 +181,6 @@ static func _tween(node: Node, tween_prop: Variant) -> Tween:
 		(tween_prop as Tween).tween_subtween(twn)
 		return twn
 	return null
-
-static func _convert(node: Node, prop: String, val: Array) -> Variant:
-	var type := typeof(node.get_indexed(prop))
-	var got: Variant
-	match type:
-		TYPE_VECTOR2, TYPE_VECTOR2I:
-			got = Vector2(val[0], val[1])
-		TYPE_VECTOR3, TYPE_VECTOR3I:
-			got = Vector3(val[0], val[1], val[2])
-		_:
-			got = val[0]
-	#prints("Converted %s:%s %s -> %s" % [prop, type_string(type), val, got])
-	return got
 
 static func _tokenize(src: String) -> PackedStringArray:
 	var tokens := PackedStringArray()
@@ -178,14 +198,13 @@ static func _tokenize(src: String) -> PackedStringArray:
 			while indent < indent_stack[-1]:
 				indent_stack.pop_back()
 				tokens.append(T_DEDENT)
-		var pattern := RegEx.new()
-		pattern.compile(r'("[^"]*"|\d+\.\d+|\d+|[a-zA-Z_][\w\.]*|:|\+|\-)')
-		var pos := 0
-		while pos < stripped.length():
-			var m := pattern.search(stripped, pos)
+		var pattern := RegEx.create_from_string(r'("[^"]*"|\d+\.\d+|\d+|![a-zA-Z_]\w*(?:\(\))?|[a-zA-Z_]\w*(?:\.[a-zA-Z_]\w*)*\(?|[@()+\-*/%:,.])')
+		var i := 0
+		while i < stripped.length():
+			var m := pattern.search(stripped, i)
 			if m == null: break
 			tokens.append(m.get_string())
-			pos = m.get_end()
+			i = m.get_end()
 		tokens.append(T_NEWLINE)
 	while indent_stack.size() > 1:
 		indent_stack.pop_back()
@@ -194,15 +213,14 @@ static func _tokenize(src: String) -> PackedStringArray:
 
 func _parse(tokens: PackedStringArray, i := 0) -> Array:
 	var commands: Array = []
-
 	while i < tokens.size():
 		var t := tokens[i]
-
+		
 		# consume top-level newlines quickly
-		if t == T_NEWLINE:
+		if t == T_NEWLINE or t == T_SPACE:
 			i += 1
 			continue
-
+			
 		# End of block
 		if t == T_DEDENT:
 			i += 1
@@ -220,8 +238,10 @@ func _parse(tokens: PackedStringArray, i := 0) -> Array:
 			continue
 		
 		# block-like keywords with optional args (block, parallel, choice, on)
-		if t in [ T_BLOCK, T_PARALLEL, T_CHOICE, T_ON ]:
+		if t in [ T_BLOCK, T_PARALLEL, T_PARALLEL_SHORT, T_CHOICE, T_ON ]:
 			var keyword := t
+			if t == T_PARALLEL_SHORT:
+				keyword = T_PARALLEL
 			i += 1
 			var args := []
 			# collect tokens until colon (or we hit end)
@@ -301,72 +321,100 @@ func _parse(tokens: PackedStringArray, i := 0) -> Array:
 			i = got[1]
 			commands.append(cmd)
 			continue
-
 		# fallback: consume one token to avoid infinite loops
 		i += 1
 	return [commands, i]
 
-static func _parse_props(tokens: PackedStringArray, i: int) -> Array:
+func _parse_props(tokens: PackedStringArray, i: int) -> Array:
 	var props := {}
-	var start_i := i
-	
-	# loop until a structural token, keyword, or end
+
 	while i < tokens.size():
 		var token := tokens[i]
-		# stop if we hit structural markers or keywords
-		if token in [T_PARALLEL, T_CHOICE, T_BLOCK, T_ON, T_WARP, T_INDENT, T_DEDENT, T_NEWLINE, T_COLON ]:
+
+		# stop on structural tokens
+		if token in [T_PARALLEL, T_PARALLEL_SHORT, T_CHOICE, T_BLOCK, T_ON, T_WARP, T_INDENT, T_DEDENT, T_NEWLINE, T_COLON, T_LOOP]:
 			break
 
-		# skip unknown / non-identifiers safely to guarantee progress
+		# property must be a valid identifier like "modulate" or "position.x"
 		if not _is_valid_property(token):
 			i += 1
 			continue
 
-		# consume property name
-		var vals := []
-		var prop := { vals=vals }
+		var prop := { val="" }
+		var name := token.replace(".", ":")
 		i += 1
-		
-		# gather values until next identifier/keyword/structure
+
+		# optional runtime marker
+		var runtime_eval := false
+		if i < tokens.size() and tokens[i] == "!":
+			runtime_eval = true
+			prop.rel = T_REL_RUNTIME
+			i += 1
+
+		# collect expression tokens
+		var expr_tokens := []
+		var paren_level := 0
 		while i < tokens.size():
 			var v := tokens[i]
-			if v in [ T_PARALLEL, T_CHOICE, T_BLOCK, T_ON, T_WARP, T_INDENT, T_DEDENT, T_NEWLINE, T_COLON ] or _is_valid_property(v):
+
+			if v.ends_with("("):
+				paren_level += 1
+			elif v == ")":
+				paren_level -= 1
+
+			# break if top-level property/structural token and no open parens
+			if paren_level == 0 and (v in [T_NEWLINE, T_DEDENT, T_COLON] or _is_valid_property(v)):
 				break
-			if v == T_RELATIVE:
-				prop.relative = T_RELATIVE
-			elif v == T_RELATIVE_NEG:
-				prop.relative = T_RELATIVE_NEG
-			# type conversions
-			elif v.is_valid_float():
-				vals.append(float(v))
-			elif v.is_valid_int():
-				vals.append(int(v))
-			elif v == "true":
-				vals.append(true)
-			elif v == "false":
-				vals.append(false)
-			elif v.begins_with('"') and v.ends_with('"'):
-				vals.append(v.trim_prefix('"').trim_suffix('"'))
-			elif "." in v:
-				var script := GDScript.new()
-				script.source_code = "static func _return(): return %s" % v
-				script.reload()
-				var got: Variant = script._return()
-				vals.append(got)
-			else:
-				# fallback string token
-				vals.append(v)
+
+			expr_tokens.append(v)
 			i += 1
-		
-		props[token.replace(".", ":")] = prop
-	# safety net: if we didn't consume anything, advance to avoid infinite loop
-	if i == start_i:
-		i += 1
+
+		if expr_tokens.size() > 0:
+			var expr := "".join(expr_tokens)
+			expr = _maybe_wrap_vector(expr)
+			prop.val = _add_method(expr)
+
+		props[name] = prop
+
 	return [props, i]
 
+func _maybe_wrap_vector(expr: String) -> String:
+	# trim whitespace
+	expr = expr.strip_edges()
+	if expr.begins_with("(") and expr.ends_with(")"):
+		var inner := expr.substr(1, expr.length() - 2)
+		# count top-level commas
+		var depth := 0
+		var commas := 0
+		for c in inner:
+			if c == "(": depth += 1
+			elif c == ")": depth -= 1
+			elif c == "," and depth == 0: commas += 1
+		if commas == 1: return "Vector2%s" % expr
+		elif commas == 2: return "Vector3%s" % expr
+		elif commas == 3: return "Color%s" % expr
+	return expr
+
+static func _is_wrapped(t: String, head := '"', tail := '"') -> bool:
+	return t.begins_with(head) and t.ends_with(tail)
+
 static func _is_valid_property(t: String) -> bool:
+	if "(" in t:
+		return true
 	if t != t.to_lower():
 		return false
 	if "." in t:
 		return t.replace(".", "_").is_valid_unicode_identifier()
 	return t.is_valid_unicode_identifier()
+
+static func _unwrap(s: String, head := '"', tail := '"') -> String:
+	return s.trim_prefix(head).trim_suffix(tail)
+
+func _add_method(expr: String) -> StringName:
+	var method_name := "_m%s" % _method_count
+	_script.source_code += "\nstatic func %s(): return %s" % [method_name, expr]
+	_method_count += 1
+	return method_name
+	
+func _eval(method_name: String) -> Variant:
+	return _script.call(method_name)
