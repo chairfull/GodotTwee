@@ -59,13 +59,13 @@ LINEAR position 0 100
 LINEAR 2 position 100 0 
 ```
 
-Uses Godots built in [transitions](https://docs.godotengine.org/en/4.4/classes/class_tween.html#enum-tween-transitiontype) and [easing](https://docs.godotengine.org/en/4.4/classes/class_tween.html#enum-tween-easetype).
+Uses Godot's [transitions](https://docs.godotengine.org/en/4.4/classes/class_tween.html#enum-tween-transitiontype) and [easing](https://docs.godotengine.org/en/4.4/classes/class_tween.html#enum-tween-easetype).
 
 - `LINEAR` or `L` constant speed. (`Tween.TRANS_LINEAR`)
-- `EASE` or `E` starts off slow, ramps up, and ends slow. (`Tween.TRANS_SINE` + `Tween.EASE_IN_OUT`)
-- `EASEIN` or `EI` starts fast, then slows. (`Tween.TRANS_SIZE` + `Tween.EASE_IN`)
-- `EASEOUT` or `EO` starts slow, then goes fast. (`Tween.TRANS_SIZE` + `Tween.EASE_OUT`)
-- `EASEINOUT` or `EIO` starts fast, then slows. (`Tween.TRANS_SIZE` + `Tween.EASE_OUT_IN`)
+- `EASE` or `E` starts off slow, ramps up, and ends slow. (`Tween.TRANS_SINE` & `Tween.EASE_IN_OUT`)
+- `EASEIN` or `EI` starts fast, then slows. (`Tween.TRANS_SINE` & `Tween.EASE_IN`)
+- `EASEOUT` or `EO` starts slow, then goes fast. (`Tween.TRANS_SINE` & `Tween.EASE_OUT`)
+- `EASEINOUT` or `EIO` starts fast, then slows. (`Tween.TRANS_SINE` & `Tween.EASE_OUT_IN`)
 
 These can follow an ease `EASE_` `E_` `EASEIN_` `EI_` `EASEOUT_` `EO_` `EASEOUTIN_` `EOI_`
 - `QUNIT`
@@ -92,7 +92,9 @@ LINEAR 1.0 rotation_degrees + 90 position 0 200
 ```
 
 ## Event Message
-If your node has an `event` signal, you can emit it with `"strings"`
+If your node has an `event` signal or method, you can emit it with `"strings"`
+
+Edit `default_event_signal_or_method` to change.
 
 ```rpy
 LINEAR 1.0 position 0 0
@@ -106,6 +108,7 @@ Statements are in ALL CAPS so they don't clash with properties.
 
 ## ON
 Connects to a signal in the node.
+When a signal is emitted, other tweens will be ended/killed.
 
 ```rpy
 ON mouse_entered:
@@ -117,27 +120,28 @@ ON pressed:
 ```
 
 ## LOOP
-Set number of loops. 0 = infinite.
+Set number of loops. Leave blank for infinite.
 
 ```rpy
-LINEAR 1 modulate Color.YELLOW
-LINEAR 0.5 modulate Color.RED
+EASE 1 modulate Color.YELLOW
+EASE 0.5 modulate Color.RED
 LOOP
 ```
 
 ## BLOCK
 Allows for more complex chaining.
 
-- Walks to position.
-- Marches back and forth 3 times.
-- Marches back to origin.
-
 ```rpy
+# Walk to position.
 LINEAR 1 position 0 0
+
+# 3 time patrol.
 BLOCK:
 	LINEAR 1 position 100 100
 	LINEAR 1 position 200 100
 	REPEAT 3
+
+# Back to home.
 LINEAR 1 position 0 0
 ```
 
@@ -157,19 +161,19 @@ PARALLEL:
 	LOOP
 ```
 
-## TIME
-Simply passing a float `1.0` is enough. Or you can type `TIME`
+## WAIT
+Simply passing a float `1.0` is enough. Or you can type `WAIT`.
 
 ```rpy
-LINEAR 1 position 100 100
+L position 100 100
 
-TIME # Wait 1 second.
+WAIT # Waits 1 second by default.
 
-LINEAR 1 position 0 0
+L position 0 0
 
 2 # Wait 2 seconds.
 
-LINEAR 1 position 100 0
+L position 100 0
 ```
 
 # To-Do

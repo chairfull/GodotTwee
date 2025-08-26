@@ -40,7 +40,7 @@ func run(node: Node, tween_prop: StringName):
 	var steps: Array = _parse(_tokenize(tween))[0]
 	to_tween(node, tween_prop, steps)
 
-static func to_tween(node: Node, tween_prop: Variant, steps: Array) -> Tween:
+func to_tween(node: Node, tween_prop: Variant, steps: Array) -> Tween:
 	var twn: Tween = null
 	for step in steps:
 		match step.type:
@@ -66,10 +66,16 @@ static func to_tween(node: Node, tween_prop: Variant, steps: Array) -> Tween:
 					twn = _tween(node, tween_prop)
 				twn.tween_interval(step.wait)
 			T_STRING:
-				if node.has_signal(&"event"):
+				# Call signal.
+				if node.has_signal(default_event_signal_or_method):
 					if not twn:
 						twn = _tween(node, tween_prop)
-					twn.tween_callback(node.event.emit.bind(step.value))
+					twn.tween_callback(node[default_event_signal_or_method].emit.bind(step.value))
+				# Call method.
+				elif node.has_method(default_event_signal_or_method):
+					if not twn:
+						twn = _tween(node, tween_prop)
+					twn.tween_callback(node[default_event_signal_or_method].bind(step.value))
 				else:
 					push_warning("No event signal to emit.")
 			T_PROPERTIES_TWEENED:
@@ -118,18 +124,18 @@ static func to_tween(node: Node, tween_prop: Variant, steps: Array) -> Tween:
 							var prop_info: Dictionary = step.props[prop]
 							var result := _convert(node, prop, prop_info.vals)
 							match prop_info.get(&"relative"):
-								T_RELATIVE: node[prop] += result
-								T_RELATIVE_NEG: node[prop] -= result
-								_: node[prop] = result
+								T_RELATIVE: node.set_indexed(prop, node.get_indexed(prop) + result)
+								T_RELATIVE_NEG: node.set_indexed(prop, node.get_indexed(prop) - result)
+								_: node.set_indexed(prop, result)
 							)
 				else:
 					for prop in step.props:
 						var prop_info: Dictionary = step.props[prop]
 						var result := _convert(node, prop, prop_info.vals)
 						match prop_info.get(&"relative"):
-							T_RELATIVE: node[prop] += result
-							T_RELATIVE_NEG: node[prop] -= result
-							_: node[prop] = result
+							T_RELATIVE: node.set_indexed(prop, node.get_indexed(prop) + result)
+							T_RELATIVE_NEG: node.set_indexed(prop, node.get_indexed(prop) - result)
+							_: node.set_indexed(prop, result)
 	return twn
 
 static func _tween(node: Node, tween_prop: Variant) -> Tween:
@@ -143,8 +149,8 @@ static func _tween(node: Node, tween_prop: Variant) -> Tween:
 		return twn
 	return null
 
-static func _convert(node: Node, prop: StringName, val: Array) -> Variant:
-	var type := typeof(node[prop])
+static func _convert(node: Node, prop: String, val: Array) -> Variant:
+	var type := typeof(node.get_indexed(prop))
 	var got: Variant
 	match type:
 		TYPE_VECTOR2, TYPE_VECTOR2I:
@@ -352,11 +358,15 @@ static func _parse_props(tokens: PackedStringArray, i: int) -> Array:
 				vals.append(v)
 			i += 1
 		
-		props[token] = prop
+		props[token.replace(".", ":")] = prop
 	# safety net: if we didn't consume anything, advance to avoid infinite loop
 	if i == start_i:
 		i += 1
 	return [props, i]
 
 static func _is_valid_property(t: String) -> bool:
-	return t.is_valid_identifier()
+	if t != t.to_lower():
+		return false
+	if "." in t:
+		return t.replace(".", "_").is_valid_unicode_identifier()
+	return t.is_valid_unicode_identifier()
