@@ -39,15 +39,16 @@ const T_WARP := &"WARP" # TODO:
 	var pars := _parse(toks)
 	print(toks)
 	print(JSON.stringify(pars[0], "\t", false))
-	DisplayServer.clipboard_set(JSON.stringify(pars[0], "\t", false))
+	#DisplayServer.clipboard_set(JSON.stringify(pars[0], "\t", false))
 
 func run(node: Node, tween_prop: StringName):
 	_script = GDScript.new()
 	_script.source_code += "static var node: Node"
 	_method_count = 0
 	var steps: Array = _parse(_tokenize(tween))[0]
+	_script.source_code += "\n# %s" % Time.get_unix_time_from_system()
 	_script.source_code = _script.source_code.replace("@", "node.")
-	print(_script.source_code)
+	#print(_script.source_code)
 	_script.reload()
 	_script.node = node
 	to_tween(node, tween_prop, steps)
@@ -68,8 +69,11 @@ func to_tween(node: Node, tween_prop: Variant, steps: Array) -> Tween:
 				if not twn:
 					twn = _tween(node, tween_prop)
 				to_tween(node, twn, step.children)
+			"METH":
+				if not twn:
+					twn = _tween(node, tween_prop)
+				twn.tween_callback(_eval.bind(step.meth))
 			T_LOOP:
-				prints("LOOP", step)
 				if twn:
 					twn.set_loops(step.loop)
 				else:
@@ -281,9 +285,25 @@ func _parse(tokens: PackedStringArray, i := 0) -> Array:
 			continue
 		
 		# String event.
-		if t.begins_with('"') and t.ends_with('"'):
-			commands.append({ type=T_STRING, value=t.trim_prefix('"').trim_suffix('"') })
+		if _is_wrapped(t):
+			commands.append({ type=T_STRING, value=_unwrap(t) })
 			i += 1
+			continue
+		
+		if t.ends_with("("):
+			i += 1
+			var deep := 1
+			var meth := t
+			while i < tokens.size():
+				meth += tokens[i]
+				if tokens[i] == "(": deep += 1
+				if tokens[i] == ")":
+					deep -= 1
+					if deep == 0:
+						i += 1
+						break
+				i += 1
+			commands.append({ type="METH", meth=_add_method(meth, false) })
 			continue
 		
 		# TODO: Warp
@@ -410,9 +430,12 @@ static func _is_valid_property(t: String) -> bool:
 static func _unwrap(s: String, head := '"', tail := '"') -> String:
 	return s.trim_prefix(head).trim_suffix(tail)
 
-func _add_method(expr: String) -> StringName:
+func _add_method(expr: String, returns := true) -> StringName:
 	var method_name := "_m%s" % _method_count
-	_script.source_code += "\nstatic func %s(): return %s" % [method_name, expr]
+	if returns:
+		_script.source_code += "\nstatic func %s(): return %s" % [method_name, expr]
+	else:
+		_script.source_code += "\nstatic func %s(): %s" % [method_name, expr]
 	_method_count += 1
 	return method_name
 	

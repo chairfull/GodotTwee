@@ -7,10 +7,8 @@ Create tweens fast and easy.
 
 ```rpy
 position (0, 0) modulate Color.WHITE
-LINEAR position (0, 100) modulate Color.RED
-LINEAR position (100, 100) modulate Color.WHITE
-LINEAR position (100, 0) modulate Color.RED
-LINEAR position (0, 0) modulate Color.WHITE
+LINEAR position (100, 0) modulate ! lerp(Color.RED, Color.GREEN, randf())
+LINEAR position ! (randf_range(-100, 100), 20.0) modulate Color.WHITE
 ```
 
 Rig signal based animations in a snap.
@@ -92,14 +90,14 @@ LINEAR 1.0 rotation_degrees + 90 position (0, 200)
 ```
 
 ## Runtime Properties
-The `@` symbol before a value says to retrieve it at runtime. Good for randomizing.
+The `!` symbol before a value says to retrieve it at runtime. Good for randomizing.
 
 ```rpy
 PLL:
-	E rotation @ randf_range(-PI, PI)
+	E rotation ! randf_range(-PI, PI)
 	LOOP
 PLL:
-	E position @ (randf_range(-100, 100), randf_range(100, 100))
+	E position ! (randf_range(-100, 100), randf_range(100, 100))
 	LOOP
 ```
 
@@ -114,7 +112,7 @@ E rotation deg_to_rad(90 * 3)
 LOOP
 ```
 
-## Event Message
+## String Line
 If your node has an `event` signal or method, you can emit it with `"strings"`
 
 Edit `default_event_signal_or_method` to change.
@@ -124,6 +122,24 @@ LINEAR 1.0 position (0, 0)
 "At Top Left"
 LINEAR 1.0 position (100, 100)
 "Reached bottom right"
+```
+
+## Function Line
+You can have functions be called during the tween.
+
+You can access the node with `node` or preface vars and funcs with `@`: `node.name` == `@name`
+
+```rpy
+E 1.0 modulate Color.RED
+print("I, %s, am red!" % @name)
+2.0
+
+E 1.0 modulate Color.GREEN
+print("Now %s is green!" % node.name)
+2.0
+
+E 1.0 modulate Color.WHITE
+print("Back to how things should be.")
 ```
 
 # Statements
@@ -200,10 +216,12 @@ L position (100, 0)
 ```
 
 # Random Esoteric Features
-- `rotation` will use `lerp_angle()` if no relative tokens (`+` or `-`) are being used.
+- `rotation` will use `lerp_angle()` if no relative tokens (`+` `!` `-`) are being used.
 
 # To-Do
 - Call functions.
 - Set properties with variables.
 - Better error handling.
 - Allow comments.
+- Allow addition of custom commands/blocks
+	- Create better Parser class system.
