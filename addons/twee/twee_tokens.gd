@@ -1,5 +1,16 @@
 extends RefCounted
 
+const TRANS_NAMES: PackedStringArray = [
+	"LINEAR", "L",
+	"EASE", "E",
+	"EASE_IN", "EI",
+	"EASE_OUT", "EO",
+	"EASE_OUT_IN", "EOI",
+	
+	"EASE_BACK", "E_BACK", "EI_BACK", "EO_BACK", "EOI_BACK",
+	# TODO
+]
+
 const INDENT := "INDENT"
 const DEDENT := "DEDENT"
 const NEWLINE := "NEWLINE"

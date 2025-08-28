@@ -24,7 +24,8 @@ func _parse_property(object: Object, type: Variant.Type, name: String, hint_type
 				#props += 1
 		#print("props ", props)
 		var trans_color = settings.get("text_editor/theme/highlighting/comment_markers/critical_color")
-		for key in ["L", "LINEAR", "EASE", "E", "EASE_IN", "EASE_OUT"]:
+		for key in ["L", "LINEAR", "EASE", "E", "EASE_IN", "EI", "EASE_OUT", "EO",
+			"E_BACK", "EI_BACK", "EO_BACK", "EOI_BACK"]:
 			hl.add_keyword_color(key, trans_color)
 		
 		hl.number_color = settings.get("text_editor/theme/highlighting/number_color")
@@ -39,8 +40,6 @@ func _parse_property(object: Object, type: Variant.Type, name: String, hint_type
 		var builtin_color = settings.get("text_editor/theme/highlighting/gdscript/annotation_color")
 		for prop in ["ON", "PARALLEL", "BLOCK", "LOOP"]:
 			hl.add_keyword_color("ON", builtin_color)
-		hl.add_keyword_color("PARALLEL", settings.get("text_editor/theme/highlighting/keyword_color"))
-		hl.add_keyword_color("BLOCK", settings.get("text_editor/theme/highlighting/keyword_color"))
 		hl.add_color_region("#", "", settings.get("text_editor/theme/highlighting/comment_color"), true)
 		
 		var vbox := VBoxContainer.new()
