@@ -13,13 +13,13 @@ EASE 1.0 position (100, 100) modulate Color.RED
 It can access the node's methods/properties with the `@` prefix.
 
 ```rpy
-position (0, 0)
+position @get_spawn("woodchopper")
 BLOCK:
 	EASE position @get_random_woodchop_point()
 	REPEAT 3
-gain_resource("wood", 1)
+@gain_resource("wood", 1)
 print("Got the wood! Let's go home.")
-EASE position @get_dropoff_point()
+EASE position @get_dropoff_point("woodchopper")
 ```
 
 It can be used to manage multiple signals at once.
@@ -42,7 +42,7 @@ ON pressed:
 		LOOP
 	PARALLEL:
 		1.0
-		get_tree().quit()
+		@get_tree().quit()
 ```
 
 This animates an object to ease towards the mouse position every 1 second.
@@ -100,11 +100,12 @@ Uses Godot's [transitions](https://docs.godotengine.org/en/4.4/classes/class_twe
 - `EASE` or `E` starts off slow, ramps up, and ends slow. (`Tween.TRANS_SINE` & `Tween.EASE_IN_OUT`)
 - `EASEIN` or `EI` starts fast, then slows. (`Tween.TRANS_SINE` & `Tween.EASE_IN`)
 - `EASEOUT` or `EO` starts slow, then goes fast. (`Tween.TRANS_SINE` & `Tween.EASE_OUT`)
-- `EASEINOUT` or `EIO` starts fast, then slows. (`Tween.TRANS_SINE` & `Tween.EASE_OUT_IN`)
+- `EASEOUTIN` or `EOI` starts fast, then slows. (`Tween.TRANS_SINE` & `Tween.EASE_OUT_IN`)
 
 ```
-Heads: EASE_ E_ EASEIN_ EI_ EASEOUT_ EO_ EASEOUTIN_ EOI_
-Tails: QUNIT QUART QUAD EXPO ELASTIC CUBIC CIRC BOUNCE BACK SPRING
+Combine:
+	Heads: EASE_ E_ EASEIN_ EI_ EASEOUT_ EO_ EASEOUTIN_ EOI_
+	Tails: QUNIT QUART QUAD EXPO ELASTIC CUBIC CIRC BOUNCE BACK SPRING
 ```
 
 # Functions & Expressions
@@ -137,7 +138,7 @@ print("Back to how things should be.")
 ```
 
 # Signals
-To fire on a signal use the `ON` block.
+To animate on a signal use the `ON` block.
 
 You can define animations for many signals at once.
 When a signal is emitted, other tweens defined in the `Twee` will be ended/killed.
@@ -161,7 +162,7 @@ ON choice_selected:
 	E 0.1 modulate ~color
 	print(~message)
 	E modulate Color.TRANSPARENT
-	selected.emit(~index)
+	@selected.emit(~index)
 ```
 
 # Looping
@@ -181,7 +182,7 @@ A `BLOCK` is a sub-tween that pauses the parent tween until it is finished.
 
 ```rpy
 # Walk to position.
-LINEAR 1 position 0 0
+LINEAR 1 position (0, 0)
 
 # 3 time patrol.
 BLOCK:
@@ -225,7 +226,7 @@ L position (100, 0)
 ```
 
 # Random Features
-- `rotation` will use `lerp_angle()` if no relative tokens (`+` `-`) are being used.
+- `rotation` will use `lerp_angle()`.
 
 # To-Do
 - ~~Call functions.~~
