@@ -1,6 +1,8 @@
 @tool
 extends EditorInspectorPlugin
 
+const Tokenizer := preload("twee_tokenizer.gd")
+
 func _can_handle(object: Object) -> bool:
 	return object is TweeNode
 
@@ -47,11 +49,16 @@ func _parse_property(object: Object, type: Variant.Type, name: String, hint_type
 		var hbox := HBoxContainer.new()
 		vbox.add_child(hbox)
 		hbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		for btn_txt in ["Tokens", "Run", "End"]:
+		for btn_dat in [
+			["Tokens", func(): print(Tokenizer.tokenize(object[name])), "Print tokens to output."],
+			["Run", func(): pass, "Not Implemented..."],
+			["End", func(): pass, "Not Implemented..."]
+			]:
 			var btn := Button.new()
 			hbox.add_child(btn)
-			btn.tooltip_text = "Not Implemented..."
-			btn.text = btn_txt
+			btn.text = btn_dat[0]
+			btn.pressed.connect(btn_dat[1])
+			btn.tooltip_text = btn_dat[2]
 			btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		
 		var editor := CodeEdit.new()

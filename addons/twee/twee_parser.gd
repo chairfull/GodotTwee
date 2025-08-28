@@ -102,7 +102,7 @@ static func _parse(tokens: PackedStringArray, i := 0) -> Array[Variant]:
 						i += 1
 						break
 				i += 1
-			commands.append({ type="METH", meth=ClassWriter.add_static_func(meth, false) })
+			commands.append({ type="METH", meth=ClassWriter.add_static_func("node." + meth, false) })
 			continue
 		
 		# TODO: Warp
@@ -175,7 +175,12 @@ static func _parse_props(tokens: PackedStringArray, i: int) -> Array:
 		var paren_level := 0
 		while i < tokens.size():
 			var v := tokens[i]
-
+			
+			if v == ".":
+				expr_tokens.append(v)
+				i += 1
+				continue
+			
 			if v.ends_with("("):
 				paren_level += 1
 			elif v == ")":

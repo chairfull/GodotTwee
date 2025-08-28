@@ -4,7 +4,7 @@ class_name TweeNode extends Node
 
 signal event(str: String)
 
-@export_storage var twees: Array[Twee]:
+@export_storage var twees: Array[Twee] = [Twee.new()]:
 	set(t):
 		twees = t
 		notify_property_list_changed()
@@ -35,7 +35,6 @@ func reload():
 	playing = true
 	for twn in twees:
 		if twn: twn.reload(self)
-		prints(true if twn else false, twn)
 
 func kill():
 	playing = false

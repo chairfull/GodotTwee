@@ -3,15 +3,26 @@ Requires `Godot 4.5+`
 
 Inspired by [Ren'Py's transform system](https://www.renpy.org/doc/html/transforms.html) and built off [Godot's tween system](https://docs.godotengine.org/en/4.4/classes/class_tween.html).
 
-Create tweens fast and easy.
+`Twee` is a scripting language for defining tweens fast & easy.
 
 ```rpy
 position (0, 0) modulate Color.WHITE
-LINEAR position (100, 0) modulate lerp(Color.RED, Color.GREEN, randf())
-LINEAR position (randf_range(-100, 100), 20.0) modulate Color.WHITE
+EASE 1.0 position (100, 100) modulate Color.RED
 ```
 
-Rig signal based animations in a snap.
+It can access the node's methods/properties with the `@` prefix.
+
+```rpy
+position (0, 0)
+BLOCK:
+	EASE position @get_random_woodchop_point()
+	REPEAT 3
+gain_resource("wood", 1)
+print("Got the wood! Let's go home.")
+EASE position @get_dropoff_point()
+```
+
+It can be used to manage multiple signals at once.
 
 ```rpy
 ON mouse_entered:
@@ -20,41 +31,67 @@ ON mouse_entered:
 		L 0.1 modulate Color.RED
 		L 0.2 modulate Color.YELLOW
 		LOOP
+
 ON mouse_exited:
 	L 0.2 modulate Color.WHITE
+
 ON pressed:
-	L 0.1 modulate Color.GREEN
-	L 0.1 modulate Color.WHITE
-	LOOP
+	PARALLEL:
+		L 0.1 modulate Color.GREEN
+		L 0.1 modulate Color.WHITE
+		LOOP
+	PARALLEL:
+		1.0
+		get_tree().quit()
 ```
 
-# Basics
+This animates an object to ease towards the mouse position every 1 second.
 
-## Setting Properties
-Write the name of a nodes properties, followed by the value to set. Multiple properties can share a line.
+```rpy
+E position @get_viewport().get_mouse_position()
+LOOP
+```
+
+Here is a relative rotation.
+
+```rpy
+E rotation_degrees (@rotation_degrees + randf() * 15.0)
+LOOP
+```
+
+# Getting Started
+To set a property write it's name followed by the value. For `Vector2` and `Vector3` you don't need to write it all out.
 
 ```rpy
 position (0, 0)
 modulate Color.RED
 ```
 
-For relative properties, follow the name with a `+` or `-`
-
-Here position is getting added, rotation subtracted, and modulate is absolute.
+They can share a line if you want.
 
 ```rpy
-position + (100, 100) rotation_degrees - 90 modulate Color.WHITE
+position (0, 0) modulate Color.WHITE rotation 90
 ```
 
-## Animating Properties
+Properties can be set with functions.
+
+```rpy
+position (randf() * 100, randf() * 100)
+```
+
+To access the nodes properties and functions use the `@` preface.
+
+```rpy
+modulate @random_color()
+position (@cursor.x, @cursor.y)
+```
+
+# Animating
 Use `LINEAR` or `L` to animate a property linearly. Default duration is 1 second unless defined.
 
 ```rpy
 position (0, 0)
-LINEAR position (100, 0)
 LINEAR position (100, 100)
-LINEAR position (0, 100)
-LINEAR 2 position (100, 0) 
 ```
 
 Uses Godot's [transitions](https://docs.godotengine.org/en/4.4/classes/class_tween.html#enum-tween-transitiontype) and [easing](https://docs.godotengine.org/en/4.4/classes/class_tween.html#enum-tween-easetype).
@@ -65,31 +102,12 @@ Uses Godot's [transitions](https://docs.godotengine.org/en/4.4/classes/class_twe
 - `EASEOUT` or `EO` starts slow, then goes fast. (`Tween.TRANS_SINE` & `Tween.EASE_OUT`)
 - `EASEINOUT` or `EIO` starts fast, then slows. (`Tween.TRANS_SINE` & `Tween.EASE_OUT_IN`)
 
-These can follow an ease `EASE_` `E_` `EASEIN_` `EI_` `EASEOUT_` `EO_` `EASEOUTIN_` `EOI_`
-- `QUNIT`
-- `QUART`
-- `QUAD`
-- `EXPO`
-- `ELASTIC`
-- `CUBIC`
-- `CIRC`
-- `BOUNCE`
-- `BACK`
-- `SPRING`
-
-## Relative Properties
-To have a property change be relative to current use `+` or `-` after the name.
-
-Here the object has a relative rotation but an absolute position animation.
-
-```rpy
-LINEAR 1.0 rotation_degrees + 90 position (0, 0)
-LINEAR 1.0 rotation_degrees + 90 position (200, 0)
-LINEAR 1.0 rotation_degrees + 90 position (200, 200)
-LINEAR 1.0 rotation_degrees + 90 position (0, 200)
+```
+Heads: EASE_ E_ EASEIN_ EI_ EASEOUT_ EO_ EASEOUTIN_ EOI_
+Tails: QUNIT QUART QUAD EXPO ELASTIC CUBIC CIRC BOUNCE BACK SPRING
 ```
 
-## Functions & Expressions
+# Functions & Expressions
 You can call built in functions or include expressions inside `()`.
 
 ```rpy
@@ -100,19 +118,7 @@ E rotation deg_to_rad(90 * 3)
 LOOP
 ```
 
-## String Line
-If your node has an `event` signal or method, you can emit it with `"strings"`
-
-Edit `default_event_signal_or_method` to change.
-
-```rpy
-LINEAR 1.0 position (0, 0)
-"At Top Left"
-LINEAR 1.0 position (100, 100)
-"Reached bottom right"
-```
-
-## Function Line
+# Function Line
 You can have functions be called during the tween.
 
 You can access the node with `node` or preface vars and funcs with `@`: `node.name` == `@name`
@@ -130,12 +136,11 @@ E 1.0 modulate Color.WHITE
 print("Back to how things should be.")
 ```
 
-# Statements
-Statements are in ALL CAPS so they don't clash with properties.
+# Signals
+To fire on a signal use the `ON` block.
 
-## ON
-Connects to a signal in the node.
-When a signal is emitted, other tweens will be ended/killed.
+You can define animations for many signals at once.
+When a signal is emitted, other tweens defined in the `Twee` will be ended/killed.
 
 ```rpy
 ON mouse_entered:
@@ -146,8 +151,21 @@ ON pressed:
 	L modulate Color.TOMATO
 ```
 
-## LOOP
-Set number of loops. Leave blank for infinite.
+## Signal Arguments
+Signal arguments can be accessed with the `~` preface.
+
+Say we have a `signal choice_selected(index: int, message: String, color: Color)`
+
+```rpy
+ON choice_selected:
+	E 0.1 modulate ~color
+	print(~message)
+	E modulate Color.TRANSPARENT
+	selected.emit(~index)
+```
+
+# Looping
+`LOOP` will cause animation to play over again infinitely unless you follow it with a number.
 
 ```rpy
 EASE 1 modulate Color.YELLOW
@@ -155,8 +173,11 @@ EASE 0.5 modulate Color.RED
 LOOP
 ```
 
-## BLOCK
-Allows for more complex chaining.
+# Complex Chains
+`BLOCK` and `PARALLEL` allow for more complex animations.
+
+# Blocks
+A `BLOCK` is a sub-tween that pauses the parent tween until it is finished.
 
 ```rpy
 # Walk to position.
@@ -172,8 +193,8 @@ BLOCK:
 LINEAR 1 position (0, 0)
 ```
 
-## PARALLEL
-Runs commands parallel to each other. Can write `PLL` for short.
+# Parallel Blocks
+Use `PLL` or `PARALLEL` for blocks you want to run at the same time as their siblings.
 
 ```rpy
 PARALLEL:
@@ -188,8 +209,8 @@ PARALLEL:
 	LOOP
 ```
 
-## WAIT
-Simply passing a float `1.0` is enough. Or you can type `WAIT`.
+# Waiting
+To wait for some seconds pass a float `1.0` by itself. Or you can type `WAIT`.
 
 ```rpy
 L position (100, 100)
@@ -203,12 +224,14 @@ L position (0, 0)
 L position (100, 0)
 ```
 
-# Random Esoteric Features
+# Random Features
 - `rotation` will use `lerp_angle()` if no relative tokens (`+` `-`) are being used.
 
 # To-Do
-- Call functions.
-- Set properties with variables.
+- ~~Call functions.~~
+- ~~Set properties with variables.~~
+- ~~Signal arguments.~~
+- For properties that will be animated, store thier original states and use `?` to access them. `E position ?position` will return to origin.
 - Better error handling.
 - Allow comments.
 - Allow addition of custom commands/blocks

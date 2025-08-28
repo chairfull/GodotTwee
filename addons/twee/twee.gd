@@ -75,7 +75,8 @@ func reload(node: Node):
 	ClassWriter.start()
 	var toks := Tokenizer.tokenize(code)
 	var pars := Parser.parse(toks)
-	var script_class := ClassWriter.finish({ node=node })
+	var print_source := false
+	var script_class := ClassWriter.finish({ node=node }, print_source)
 	_create_tween(node, tween_prop, pars, script_class)
 
 func _create_tween(node: Node, tween_prop: Variant, steps: Array[Dictionary], script_class: GDScript) -> Tween:
@@ -84,7 +85,14 @@ func _create_tween(node: Node, tween_prop: Variant, steps: Array[Dictionary], sc
 		match step.type:
 			Token.ON:
 				for signal_id in step.args:
-					node[signal_id].connect(func(): _create_tween(node, tween_prop, step.children, script_class))
+					node[signal_id].connect(func(...args):
+						var sig_info := get_signal_info(node, signal_id)
+						for i in args.size():
+							if i < sig_info.args.size():
+								var arg_info = sig_info.args[i]
+								script_class.signal_args[arg_info.name] = args[i]
+								
+						_create_tween(node, tween_prop, step.children, script_class))
 			Token.PARALLEL:
 				if not twn:
 					twn = _tween(node, tween_prop)
@@ -133,7 +141,6 @@ func _create_tween(node: Node, tween_prop: Variant, steps: Array[Dictionary], sc
 					vars[prop+"_a"] = node.get_indexed(prop)
 					vars[prop+"_b"] = node.get_indexed(prop)
 					sub.tween_callback(func():
-						#print("update")
 						var a := node.get_indexed(prop)
 						var b := script_class.call(prop_info.val)
 						vars[prop + "_a"] = a
@@ -176,6 +183,12 @@ func _create_tween(node: Node, tween_prop: Variant, steps: Array[Dictionary], sc
 						node.set_indexed(prop, result)
 						)
 	return twn
+
+static func get_signal_info(node: Node, signame: StringName) -> Dictionary:
+	for sig in node.get_signal_list():
+		if sig.name == signame:
+			return sig
+	return {}
 
 static func _tween(node: Node, tween_prop: Variant) -> Tween:
 	if tween_prop is StringName:
