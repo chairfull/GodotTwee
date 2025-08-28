@@ -5,3 +5,6 @@
 /ignore
 icon.svg
 icon.svg.import
+.gitattributes
+.editorconfig
+project.godot
