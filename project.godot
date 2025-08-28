@@ -15,6 +15,10 @@ run/main_scene="uid://dm331snuop7e8"
 config/features=PackedStringArray("4.5", "GL Compatibility")
 config/icon="res://icon.svg"
 
+[editor_plugins]
+
+enabled=PackedStringArray("res://addons/asdd/plugin.cfg", "res://addons/twee/plugin.cfg")
+
 [rendering]
 
 renderer/rendering_method="gl_compatibility"

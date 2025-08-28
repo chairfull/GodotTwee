@@ -1,0 +1,70 @@
+@tool
+extends EditorInspectorPlugin
+
+func _can_handle(object: Object) -> bool:
+	return object is TweeNode
+
+func _parse_property(object: Object, type: Variant.Type, name: String, hint_type: PropertyHint, hint_string: String, usage_flags: int, wide: bool) -> bool:
+	if object is TweeNode and name.begins_with("_TWEE_"):
+		var hl := CodeHighlighter.new()
+		var settings := EditorInterface.get_editor_settings()
+		var builtins := [
+			"Color", "Vector2", "Vector3", "Transform2D", "Transform3D", "Basis", "Quaternion",
+			"Node", "Node2D", "Node3D", "Object", "Resource", "Dictionary", "Array", "PackedStringArray"
+		]
+		
+		for b in builtins:
+			hl.add_keyword_color(b, settings.get("text_editor/theme/highlighting/user_type_color"))
+		
+		#var node_color = settings.get("text_editor/theme/highlighting/gdscript/node_path_color")
+		#var props := 0
+		#for prop in object.get_property_list():
+			#if prop.usage & PROPERTY_USAGE_DEFAULT:
+				#hl.add_keyword_color(prop.name, node_color)
+				#props += 1
+		#print("props ", props)
+		var trans_color = settings.get("text_editor/theme/highlighting/comment_markers/critical_color")
+		for key in ["L", "LINEAR", "EASE", "E", "EASE_IN", "EASE_OUT"]:
+			hl.add_keyword_color(key, trans_color)
+		
+		hl.number_color = settings.get("text_editor/theme/highlighting/number_color")
+		hl.symbol_color = settings.get("text_editor/theme/highlighting/symbol_color")
+		hl.function_color = settings.get("text_editor/theme/highlighting/function_color")
+		hl.member_variable_color = settings.get("text_editor/theme/highlighting/member_variable_color")
+		hl.add_color_region("\"", "\"", settings.get("text_editor/theme/highlighting/string_color"))
+		hl.add_color_region("'", "'", settings.get("text_editor/theme/highlighting/string_color"))
+		var bool_color = settings.get("text_editor/theme/highlighting/keyword_color")
+		hl.add_keyword_color("true", bool_color)
+		hl.add_keyword_color("false", bool_color)
+		var builtin_color = settings.get("text_editor/theme/highlighting/gdscript/annotation_color")
+		for prop in ["ON", "PARALLEL", "BLOCK", "LOOP"]:
+			hl.add_keyword_color("ON", builtin_color)
+		hl.add_keyword_color("PARALLEL", settings.get("text_editor/theme/highlighting/keyword_color"))
+		hl.add_keyword_color("BLOCK", settings.get("text_editor/theme/highlighting/keyword_color"))
+		hl.add_color_region("#", "", settings.get("text_editor/theme/highlighting/comment_color"), true)
+		
+		var vbox := VBoxContainer.new()
+		vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		var hbox := HBoxContainer.new()
+		vbox.add_child(hbox)
+		hbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		for btn_txt in ["Tokens", "Run", "End"]:
+			var btn := Button.new()
+			hbox.add_child(btn)
+			btn.tooltip_text = "Not Implemented..."
+			btn.text = btn_txt
+			btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		
+		var editor := CodeEdit.new()
+		vbox.add_child(editor)
+		editor.gutters_draw_line_numbers = true
+		editor.text = object.get(name)
+		editor.syntax_highlighter = hl
+		editor.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		editor.highlight_current_line = true
+		editor.highlight_all_occurrences = true
+		editor.text_changed.connect(func(): object.set(name, editor.text))
+		editor.custom_minimum_size.y = 300.0
+		add_property_editor(name, vbox)
+		return true
+	return false
