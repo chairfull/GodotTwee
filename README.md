@@ -1,4 +1,4 @@
-# Tweeny v0.1 Early Dev Version
+# Twee v0.1 Early Dev Version
 Requires `Godot 4.5+`
 
 Inspired by [Ren'Py's transform system](https://www.renpy.org/doc/html/transforms.html) and built off [Godot's tween system](https://docs.godotengine.org/en/4.4/classes/class_tween.html).
