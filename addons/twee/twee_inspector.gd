@@ -50,7 +50,8 @@ func _parse_property(object: Object, type: Variant.Type, name: String, hint_type
 		vbox.add_child(hbox)
 		hbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		for btn_dat in [
-			["Tokens", func(): print(Tokenizer.tokenize(object[name])), "Print tokens to output."],
+			["Tokens", func(): Twee.prnt_tokens(object[name]), "Print tokens to output."],
+			["Parsed", func(): Twee.prnt_parsed(object[name]), "Print parser to output."],
 			["Run", func(): pass, "Not Implemented..."],
 			["End", func(): pass, "Not Implemented..."]
 			]:

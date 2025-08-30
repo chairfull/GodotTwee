@@ -4,11 +4,14 @@ extends RefCounted
 const Token := preload("twee_tokens.gd")
 const ClassWriter := preload("twee_class_writer.gd")
 
-static var default_tween_duration := 1.0 ## Default seconds to tween if a duration wasn't explicitly given.
-static var default_pause_duration := 1.0 ## Default seconds to wait if WAIT wasn't explicitly given.
-static var default_event_signal_or_method := &"event" ## Will attempt to pass "string" events to this.
+const default_tween_duration := 1.0 ## Default seconds to tween if a duration wasn't explicitly given.
+const default_pause_duration := 1.0 ## Default seconds to wait if WAIT wasn't explicitly given.
+const default_event_signal_or_method := &"event" ## Will attempt to pass "string" events to this.
+
+static var all_props: PackedStringArray
 
 static func parse(tokens: PackedStringArray) -> Array[Dictionary]:
+	all_props.clear()
 	var parsed := _parse(tokens)
 	var steps: Array[Dictionary] = parsed[0]
 	return steps
@@ -163,13 +166,6 @@ static func _parse_props(tokens: PackedStringArray, i: int) -> Array:
 		var name := token.replace(".", ":")
 		i += 1
 
-		# optional runtime marker
-		#var runtime_eval := false
-		#if i < tokens.size() and tokens[i] == "!":
-			#runtime_eval = true
-			#prop.rel = Token.REL_RUNTIME
-			#i += 1
-
 		# collect expression tokens
 		var expr_tokens := []
 		var paren_level := 0
@@ -194,10 +190,17 @@ static func _parse_props(tokens: PackedStringArray, i: int) -> Array:
 			i += 1
 
 		if expr_tokens.size() > 0:
+			for j in expr_tokens.size():
+				if expr_tokens[j].begins_with("%"):
+					var parts: PackedStringArray = expr_tokens[j].split(".", true, 1)
+					expr_tokens[j] = "node.get_node(\"%s\").%s" % [parts[0], parts[1]]
+				
 			var expr := "".join(expr_tokens)
 			expr = _maybe_wrap_vector(expr)
 			prop.val = ClassWriter.add_static_func(expr)
-
+		
+		if not name in all_props:
+			all_props.append(name)
 		props[name] = prop
 
 	return [props, i]
@@ -223,12 +226,10 @@ static func _is_wrapped(t: String, head := '"', tail := '"') -> bool:
 	return t.begins_with(head) and t.ends_with(tail)
 
 static func _is_valid_property(t: String) -> bool:
-	if "(" in t:
-		return true
-	if t != t.to_lower():
-		return false
-	if "." in t:
-		return t.replace(".", "_").is_valid_unicode_identifier()
+	if t.begins_with("%"): return true
+	if "(" in t: return true
+	if t != t.to_lower(): return false
+	if "." in t: return t.replace(".", "_").is_valid_unicode_identifier()
 	return t.is_valid_unicode_identifier()
 
 static func _unwrap(s: String, head := '"', tail := '"') -> String:

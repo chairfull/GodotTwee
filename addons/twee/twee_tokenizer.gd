@@ -4,7 +4,9 @@ const Token := preload("twee_tokens.gd")
 
 static func tokenize(src: String) -> PackedStringArray:
 	src = src.replace("@", "node.")
-	src = src.replace("~", "signal_args.")
+	src = src.replace("!", "signal_args.")
+	src = src.replace("~", "initial_state.")
+	
 	var tokens := PackedStringArray()
 	var lines := src.split("\n", false)
 	var indent_stack := [0]
@@ -20,7 +22,9 @@ static func tokenize(src: String) -> PackedStringArray:
 			while indent < indent_stack[-1]:
 				indent_stack.pop_back()
 				tokens.append(Token.DEDENT)
-		var REGEX := RegEx.create_from_string(r'("[^"]*"|\d+\.\d+|\d+|![a-zA-Z_]\w*(?:\(\))?|(?:~?[a-zA-Z_]\w*)(?:\.[a-zA-Z_]\w*)*\(?|[@()+\-*/%:,.])')
+		var REGEX := RegEx.create_from_string(
+	r'("[^"]*"|\d+\.\d+|\d+|![a-zA-Z_]\w*(?:\(\))?|(?:[~%]?[a-zA-Z_]\w*)(?:\.[a-zA-Z_]\w*)*\(?|[@()+\-*/%:,.])'
+)
 
 		var i := 0
 		while i < stripped.length():

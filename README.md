@@ -10,7 +10,7 @@ position (0, 0) modulate Color.WHITE
 EASE 1.0 position (100, 100) modulate Color.RED
 ```
 
-It can access the node's methods/properties with the `@` prefix.
+Access the node's methods/properties with the `@` prefix.
 
 ```rpy
 position @get_spawn("woodchopper")
@@ -22,7 +22,7 @@ print("Got the wood! Let's go home.")
 EASE position @get_dropoff_point("woodchopper")
 ```
 
-It can be used to manage multiple signals at once.
+Manage multiple signals at once.
 
 ```rpy
 ON mouse_entered:
@@ -49,6 +49,18 @@ This animates an object to ease towards the mouse position every 1 second.
 
 ```rpy
 E position @get_viewport().get_mouse_position()
+LOOP
+```
+
+Use `%` to access scene unique names.
+
+- Here we tell the cursor to move to the mouse.
+- Then our primary node moves to the cursor position. (Must be inside `()` for now.)
+- Then loop on repeat.
+
+```rpy
+E_BACK %cursor.position @get_viewport().get_mouse_position()
+E_BACK position (%cursor.position)
 LOOP
 ```
 
