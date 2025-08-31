@@ -249,10 +249,11 @@ ON mouse_exited:
 
 # Iterating
 The are some ways to iterate over a set of nodes using the `FOR` pattern:
-	- `FOR CHILD` call on all children.
-	- `FOR GROUP group_name` called on nodes in the group.
-	- `FOR PROP property` called on each non-null item in node.property. (Must be nodes.)
-	- `FOR FIND "*" ClassName` called on descendants that match a pattern.
+
+- `FOR CHILD` call on all children.
+- `FOR GROUP group_name` called on nodes in the group.
+- `FOR PROP property` called on each non-null item in node.property. (Must be nodes.)
+- `FOR FIND "*" ClassName` called on descendants that match a pattern.
 
 Use `^` to reference the subnode. `print(^)` or `^.create_particle()`.
 
