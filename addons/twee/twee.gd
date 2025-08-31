@@ -12,16 +12,7 @@ const ClassWriter := preload("twee_class_writer.gd")
 		changed.emit()
 
 @export_group("Defaults", "default_")
-#const default_tween_duration := 1.0 ## Default seconds to tween if a duration wasn't explicitly given.
-#const default_pause_duration := 1.0 ## Default seconds to wait if WAIT wasn't explicitly given.
-#const default_event_signal_or_method := &"event" ## Will attempt to pass "string" events to this.
 var _properties: Dictionary[StringName, Dictionary]
-@export_tool_button("Test") var test := func():
-	var toks := Tokenizer.tokenize(code)
-	var pars := Parser.parse(toks)
-	print(toks)
-	print(JSON.stringify(pars, "\t", false))
-	#DisplayServer.clipboard_set(JSON.stringify(pars[0], "\t", false))
 
 func get_property_type(node: Node, prop: StringName) -> int:
 	if not prop in _properties:
@@ -37,7 +28,6 @@ func _get_meta_key(node: Node) -> StringName:
 	# For debug purposes, we'll use node id and resource id to create a meta key.
 	# Resource instance id's are negative, and meta fields can't take a "-", so we remove it.
 	var tween_prop := StringName("twee_%s_%s" % [node.get_instance_id(), str(get_instance_id()).substr(1)])
-	#print("TWEEN PROP ", node, tween_prop)
 	return tween_prop
 
 func get_tween(node: Node) -> Tween:
@@ -76,14 +66,12 @@ func reload(node: Node):
 	
 	var toks := Tokenizer.tokenize(code)
 	var pars := Parser.parse(toks)
-	var print_source := true
-	ClassWriter.start()
-	var twn := _create_tween(node, tween_prop, pars, node)
-	var scr := ClassWriter.finish({ node=node }, print_source)
-	for prop in Parser.all_props:
-		scr.initial_state[prop] = node.get_indexed(prop)
+	var print_source := false
+	var twee_class := ClassWriter.new()
+	_create_class(twee_class, pars)
+	var scr := twee_class.create({  }, print_source)
+	var twn := _create_tween(node, tween_prop, pars, node, scr)
 	set_twee_script(node, scr)
-	print(scr.initial_state)
 	return twn
 
 func set_twee_script(node: Node, script: GDScript):
@@ -103,13 +91,49 @@ static func prnt_parsed(cd: String):
 	var pars := Parser.parse(toks)
 	print(JSON.stringify(pars, "\t", false))
 
-#static func prnt_source_code(cd: String):
-	#var toks := Tokenizer.tokenize(cd)
-	#var pars := Parser.parse(toks)
-	#ClassWriter.start()
-	#var script_class := ClassWriter.finish({}, true)
+static func prnt_source_code(cd: String):
+	var toks := Tokenizer.tokenize(cd)
+	var pars := Parser.parse(toks)
+	var class_writer := ClassWriter.new()
+	_create_class(class_writer, pars)
+	var script_class := class_writer.create({})
+	print(script_class.source_code)
 
-func _create_tween(node: Node, tween_prop: Variant, steps: Array[Dictionary], parent: Node, subnode_uid: String = "") -> Tween:
+static func _create_class(class_writer: ClassWriter, steps: Array[Dictionary]):
+	for step in steps:
+		match step.type:
+			Token.FOR:
+				match step.args[0]:
+					Token.CHILD: _create_class(class_writer, step.children)
+			Token.ON:
+				for signal_id in step.args:
+					_create_class(class_writer, step.children)
+			Token.PARALLEL:
+				_create_class(class_writer, step.children)
+			Token.BLOCK:
+				_create_class(class_writer, step.children)
+			"METH":
+				# Mutate
+				step.meth = class_writer.add_static_func(step.meth, false)
+			Token.LOOP: pass
+			Token.WAIT: pass
+			Token.STRING: pass
+			Token.PROPERTIES_TWEENED:
+				# Mutate
+				for prop in step.props:
+					var prop_info: Dictionary = step.props[prop]
+					if not "mutated" in prop_info:
+						prop_info.mutated = true
+						prop_info.val = class_writer.add_static_func(prop_info.val)
+			Token.PROPERTIES:
+				# Mutate
+				for prop in step.props:
+					var prop_info: Dictionary = step.props[prop]
+					if not "mutated" in prop_info:
+						prop_info.mutated = true
+						prop_info.val = class_writer.add_static_func(prop_info.val)
+
+func _create_tween(node: Node, tween_prop: Variant, steps: Array[Dictionary], root: Node, scr: GDScript) -> Tween:
 	var twn: Tween = null
 	for step in steps:
 		match step.type:
@@ -117,70 +141,57 @@ func _create_tween(node: Node, tween_prop: Variant, steps: Array[Dictionary], pa
 				match step.args[0]:
 					Token.CHILD:
 						for subnode in node.get_children():
-							var uid := ClassWriter.add_subnode(subnode)
-							_create_tween(subnode, "", step.children, node, uid)
+							_create_tween(subnode, tween_prop, step.children, root, scr)
 					Token.GROUP:
 						for subnode in node.get_tree().get_nodes_in_group(step.args[1]):
-							var uid := ClassWriter.add_subnode(subnode)
-							_create_tween(subnode, "", step.children, node, uid)
+							_create_tween(subnode, tween_prop, step.children, root, scr)
 					Token.PROP:
 						for subnode in node[step.args[1]]:
 							if subnode:
-								var uid := ClassWriter.add_subnode(subnode)
-								_create_tween(subnode, "", step.children, node, uid)
+								_create_tween(subnode, tween_prop, step.children, root, scr)
 					Token.FIND:
 						for subnode in node.find_children(step.args[1], step.args[2]):
-							var uid := ClassWriter.add_subnode(subnode)
-							_create_tween(subnode, "", step.children, node, uid)
+							_create_tween(subnode, tween_prop, step.children, root, scr)
 			Token.ON:
 				for signal_id in step.args:
-					node[signal_id].connect(func(...args):
-						var sig_info := get_signal_info(node, signal_id)
+					root[signal_id].connect(func(...args):
+						var sig_info := get_signal_info(root, signal_id)
 						for i in args.size():
 							if i < sig_info.args.size():
 								var arg_info = sig_info.args[i]
-								get_twee_script(parent).signal_args[arg_info.name] = args[i]
-								
-						_create_tween(node, tween_prop, step.children, node))
+								get_twee_script(root).signal_args[arg_info.name] = args[i]
+						_create_tween(node, tween_prop, step.children, root, scr)
+						)
 			Token.PARALLEL:
-				if not twn:
-					twn = _tween(node, tween_prop)
+				if not twn: twn = _tween(node, tween_prop)
 				twn.set_parallel()
-				_create_tween(node, twn, step.children, node)
+				_create_tween(node, twn, step.children, node, scr)
 			Token.BLOCK:
-				if not twn:
-					twn = _tween(node, tween_prop)
-				_create_tween(node, twn, step.children, node)
+				if not twn: twn = _tween(node, tween_prop)
+				_create_tween(node, twn, step.children, node, scr)
 			"METH":
-				if not twn:
-					twn = _tween(node, tween_prop)
-				twn.tween_callback(get_twee_script(parent).call.bind(step.meth))
+				if not twn: twn = _tween(node, tween_prop)
+				twn.tween_callback(get_twee_script(root).call.bind(step.meth, root, node))
 			Token.LOOP:
 				if twn:
 					twn.set_loops(step.loop)
 				else:
 					push_error("No tween to repeat.")
 			Token.WAIT:
-				if not twn:
-					twn = _tween(node, tween_prop)
+				if not twn: twn = _tween(node, tween_prop)
 				twn.tween_interval(step.wait)
 			Token.STRING:
 				# Call signal.
-				if parent.has_signal(&"_event"):
-					if not twn:
-						twn = _tween(node, tween_prop)
-					twn.tween_callback(parent[&"_event"].emit.bind(step.value))
+				if root.has_signal(&"_event"):
+					if not twn: twn = _tween(node, tween_prop)
+					twn.tween_callback(root[&"_event"].emit.bind(step.value))
 				# Call method.
-				elif parent.has_method(&"_event"):
-					if not twn:
-						twn = _tween(node, tween_prop)
-					twn.tween_callback(parent[&"_event"].bind(step.value))
+				elif root.has_method(&"_event"):
+					if not twn: twn = _tween(node, tween_prop)
+					twn.tween_callback(root[&"_event"].bind(step.value))
 				else:
 					push_warning("No event signal to emit.")
 			Token.PROPERTIES_TWEENED:
-				# Store initial state.
-				#for prop in step.props:
-					#script_class.initial_state[prop] = node.get_indexed(prop)
 				if not twn: twn = _tween(node, tween_prop)
 				var duration: float = step.duration
 				var sub := node.create_tween()
@@ -192,12 +203,14 @@ func _create_tween(node: Node, tween_prop: Variant, steps: Array[Dictionary], pa
 					var op := get_object_and_property(node, prop)
 					var true_object: Object = op[0]
 					var true_prop: String = op[1]
-					vars[prop + "_a"] = true_object.get_indexed(true_prop)
-					vars[prop + "_b"] = true_object.get_indexed(true_prop)
-					var call_name := ClassWriter.add_static_func(prop_info.val.replace("@", "node."))
+					var value: Variant = true_object.get_indexed(true_prop)
+					vars[prop + "_a"] = value
+					vars[prop + "_b"] = value
+					if not node in scr.initial_state: scr.initial_state[node] = {}
+					if not prop in scr.initial_state[node]: scr.initial_state[node][prop] = value
 					sub.tween_callback(func():
 						var a := true_object.get_indexed(true_prop)
-						var b := get_twee_script(parent).call(call_name)
+						var b := get_twee_script(root).call(prop_info.val, root, node)
 						vars[prop + "_a"] = a
 						vars[prop + "_b"] = b if b != null else a)
 					pt = sub.tween_method(func(t: float):
@@ -229,18 +242,22 @@ func _create_tween(node: Node, tween_prop: Variant, steps: Array[Dictionary], pa
 								"SPRING": pt.set_trans(Tween.TRANS_SPRING)
 				twn.tween_subtween(sub)
 			Token.PROPERTIES:
-				# Store initial state.
-				#for prop in step.props:
-					#script_class.initial_state[prop] = node.get_indexed(prop)
-				if not twn:
-					twn = _tween(node, tween_prop)
+				for prop in step.props:
+					var prop_info: Dictionary = step.props[prop]
+					if not node in scr.initial_state: scr.initial_state[node] = {}
+					if not prop in scr.initial_state[node]:
+						var op := get_object_and_property(node, prop)
+						var true_object: Object = op[0]
+						var true_prop: String = op[1]
+						scr.initial_state[node][prop] = true_object.get_indexed(true_prop)
+				if not twn: twn = _tween(node, tween_prop)
 				twn.tween_callback(func():
 					for prop in step.props:
 						var prop_info: Dictionary = step.props[prop]
 						var op := get_object_and_property(node, prop)
 						var true_object: Object = op[0]
 						var true_prop: String = op[1]
-						var result: Variant = get_twee_script(parent)[prop_info.val].call()
+						var result: Variant = get_twee_script(root)[prop_info.val].call(root, node)
 						true_object.set_indexed(true_prop, result)
 						)
 	return twn

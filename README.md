@@ -237,32 +237,49 @@ L position (0, 0)
 L position (100, 0)
 ```
 
-# Iterating
-Feature not fully implemented.
-`^` to reference the subnode.
+# Resetting
+Use `~property` pattern to reset something.
 
 ```rpy
-FOR CHILD:
-	ON mouse_entered:
-		@hovered.emit("child", ^)
-
-FOR GROUP bananas:
-	ON mouse_entered:
-		@hovered.emit("group", ^)
-
-FOR FIND "?" Sprite2D:
-	ON mouse_entered:
-		@hovered.emit("descendant", ^)
+ON mouse_entered:
+	E position (100, 100) modulate Color.RED
+ON mouse_exited:
+	E 0.2 position ~position modulate ~modulate
 ```
 
-# Random Features
-- `rotation` will use `lerp_angle()`.
+# Iterating
+The are some ways to iterate over a set of nodes using the `FOR` pattern:
+	- `FOR CHILD` call on all children.
+	- `FOR GROUP group_name` called on nodes in the group.
+	- `FOR PROP property` called on each non-null item in node.property. (Must be nodes.)
+	- `FOR FIND "*" ClassName` called on descendants that match a pattern.
+
+Use `^` to reference the subnode. `print(^)` or `^.create_particle()`.
+
+```rpy
+ON mouse_entered:
+	modulate Color(randf(), randf(), randf(), 1)
+	
+ON mouse_exited:
+	modulate Color.WHITE
+
+FOR CHILD:
+	ON mouse_entered:
+		modulate Color(randf(), randf(), randf(), 1)
+		print(^)
+		E global_position (@get_viewport().get_mouse_position() + Vector2(randf(), randf()) * 100.0)
+		
+	ON mouse_exited:
+		modulate Color.WHITE
+		E global_position ~global_position
+```
 
 # To-Do
 - ~~Call functions.~~
 - ~~Set properties with variables.~~
 - ~~Signal arguments.~~
-- For properties that will be animated, store thier original states and use `?` to access them. `E position ?position` will return to origin.
+- ~~Iterate over children and groups.~~
+- ~~For properties that will be animated, store thier original states and use `?` to access them. `E position ?position` will return to origin.~~
 - Better error handling.
 - Allow comments.
 - Allow addition of custom commands/blocks
