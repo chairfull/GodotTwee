@@ -3,7 +3,7 @@ extends RefCounted
 const Token := preload("twee_tokens.gd")
 
 static func tokenize(src: String) -> PackedStringArray:
-	src = src.replace("@", "node.")
+	#src = src.replace("@", "node.")
 	src = src.replace("!", "signal_args.")
 	src = src.replace("~", "initial_state.")
 	

@@ -32,6 +32,11 @@ const PASS := "PASS"
 const CHOICE := "CHOICE" # TODO
 const WARP := "WARP" # TODO
 
+const FOR := &"FOR"		# Beginning of a loop for nodes.
+const CHILD := &"CHILD"	# 
+const GROUP := &"GROUP"
+const FIND := &"FIND"
+const PROP := &"PROP"
 
 #const T_INDENT := &"INDENT"
 #const T_DEDENT := &"DEDENT"

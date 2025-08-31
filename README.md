@@ -237,6 +237,24 @@ L position (0, 0)
 L position (100, 0)
 ```
 
+# Iterating
+Feature not fully implemented.
+`^` to reference the subnode.
+
+```rpy
+FOR CHILD:
+	ON mouse_entered:
+		@hovered.emit("child", ^)
+
+FOR GROUP bananas:
+	ON mouse_entered:
+		@hovered.emit("group", ^)
+
+FOR FIND "?" Sprite2D:
+	ON mouse_entered:
+		@hovered.emit("descendant", ^)
+```
+
 # Random Features
 - `rotation` will use `lerp_angle()`.
 

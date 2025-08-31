@@ -52,7 +52,7 @@ func _parse_property(object: Object, type: Variant.Type, name: String, hint_type
 		for btn_dat in [
 			["Tokens", func(): Twee.prnt_tokens(object[name]), "Print tokens to output."],
 			["Parsed", func(): Twee.prnt_parsed(object[name]), "Print parser to output."],
-			["Run", func(): pass, "Not Implemented..."],
+			["Source", func(): Twee.prnt_source_code(object[name]), "Not Implemented..."],
 			["End", func(): pass, "Not Implemented..."]
 			]:
 			var btn := Button.new()

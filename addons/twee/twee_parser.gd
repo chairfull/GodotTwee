@@ -2,7 +2,6 @@
 extends RefCounted
 
 const Token := preload("twee_tokens.gd")
-const ClassWriter := preload("twee_class_writer.gd")
 
 const default_tween_duration := 1.0 ## Default seconds to tween if a duration wasn't explicitly given.
 const default_pause_duration := 1.0 ## Default seconds to wait if WAIT wasn't explicitly given.
@@ -43,7 +42,7 @@ static func _parse(tokens: PackedStringArray, i := 0) -> Array[Variant]:
 			continue
 		
 		# block-like keywords with optional args (block, parallel, choice, on)
-		if t in [ Token.BLOCK, Token.PARALLEL, Token.PARALLEL_SHORT, Token.CHOICE, Token.ON ]:
+		if t in [ Token.BLOCK, Token.PARALLEL, Token.PARALLEL_SHORT, Token.CHOICE, Token.ON, Token.FOR ]:
 			var keyword := t
 			if t == Token.PARALLEL_SHORT:
 				keyword = Token.PARALLEL
@@ -105,7 +104,7 @@ static func _parse(tokens: PackedStringArray, i := 0) -> Array[Variant]:
 						i += 1
 						break
 				i += 1
-			commands.append({ type="METH", meth=ClassWriter.add_static_func("node." + meth, false) })
+			commands.append({ type="METH", meth=meth })
 			continue
 		
 		# TODO: Warp
@@ -197,7 +196,7 @@ static func _parse_props(tokens: PackedStringArray, i: int) -> Array:
 				
 			var expr := "".join(expr_tokens)
 			expr = _maybe_wrap_vector(expr)
-			prop.val = ClassWriter.add_static_func(expr)
+			prop.val = expr
 		
 		if not name in all_props:
 			all_props.append(name)
