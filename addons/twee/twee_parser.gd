@@ -187,8 +187,8 @@ static func _parse_props(tokens: PackedStringArray, i: int) -> Array:
 					match commas:
 						0: pass
 						1: expr_tokens[start_index] = "Vector2("
-						3: expr_tokens[start_index] = "Vector3("
-						4: expr_tokens[start_index] = "Color("
+						2: expr_tokens[start_index] = "Vector3("
+						3: expr_tokens[start_index] = "Color("
 			elif v == ",":
 				paren_level[-1][1] += 1
 			

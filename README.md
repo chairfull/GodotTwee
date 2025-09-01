@@ -259,16 +259,16 @@ Use `^` to reference the subnode. `print(^)` or `^.create_particle()`.
 
 ```rpy
 ON mouse_entered:
-	modulate Color(randf(), randf(), randf(), 1)
+	modulate (randf(), randf(), randf(), 1)
 	
 ON mouse_exited:
 	modulate Color.WHITE
 
 FOR CHILD:
 	ON mouse_entered:
-		modulate Color(randf(), randf(), randf(), 1)
+		modulate (randf(), randf(), randf(), 1)
 		print(^)
-		E global_position (@get_viewport().get_mouse_position() + Vector2(randf(), randf()) * 100.0)
+		E global_position (@get_viewport().get_mouse_position() + (randf(), randf()) * 100.0)
 		
 	ON mouse_exited:
 		modulate Color.WHITE
