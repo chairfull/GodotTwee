@@ -167,7 +167,7 @@ static func _parse_props(tokens: PackedStringArray, i: int) -> Array:
 
 		# collect expression tokens
 		var expr_tokens := []
-		var paren_level := 0
+		var paren_level := []
 		while i < tokens.size():
 			var v := tokens[i]
 			
@@ -177,12 +177,23 @@ static func _parse_props(tokens: PackedStringArray, i: int) -> Array:
 				continue
 			
 			if v.ends_with("("):
-				paren_level += 1
+				paren_level.append([expr_tokens.size(), 0])
 			elif v == ")":
-				paren_level -= 1
-
+				var count := paren_level.pop_back()
+				var start_index: int = count[0]
+				# Is not a function?
+				if expr_tokens[start_index] == "(":
+					var commas: int = count[1]
+					match commas:
+						0: pass
+						1: expr_tokens[start_index] = "Vector2("
+						3: expr_tokens[start_index] = "Vector3("
+						4: expr_tokens[start_index] = "Color("
+			elif v == ",":
+				paren_level[-1][1] += 1
+			
 			# break if top-level property/structural token and no open parens
-			if paren_level == 0 and (v in [Token.NEWLINE, Token.DEDENT, Token.COLON] or _is_valid_property(v)):
+			elif paren_level.size() == 0 and (v in [Token.NEWLINE, Token.DEDENT, Token.COLON] or _is_valid_property(v)):
 				break
 
 			expr_tokens.append(v)
@@ -193,33 +204,14 @@ static func _parse_props(tokens: PackedStringArray, i: int) -> Array:
 				if expr_tokens[j].begins_with("%"):
 					var parts: PackedStringArray = expr_tokens[j].split(".", true, 1)
 					expr_tokens[j] = "node.get_node(\"%s\").%s" % [parts[0], parts[1]]
-				
-			var expr := "".join(expr_tokens)
-			expr = _maybe_wrap_vector(expr)
-			prop.val = expr
+			
+			prop.val = "".join(expr_tokens)
 		
 		if not name in all_props:
 			all_props.append(name)
 		props[name] = prop
 
 	return [props, i]
-
-static func _maybe_wrap_vector(expr: String) -> String:
-	# trim whitespace
-	expr = expr.strip_edges()
-	if expr.begins_with("(") and expr.ends_with(")"):
-		var inner := expr.substr(1, expr.length() - 2)
-		# count top-level commas
-		var depth := 0
-		var commas := 0
-		for c in inner:
-			if c == "(": depth += 1
-			elif c == ")": depth -= 1
-			elif c == "," and depth == 0: commas += 1
-		if commas == 1: return "Vector2%s" % expr
-		elif commas == 2: return "Vector3%s" % expr
-		elif commas == 3: return "Color%s" % expr
-	return expr
 
 static func _is_wrapped(t: String, head := '"', tail := '"') -> bool:
 	return t.begins_with(head) and t.ends_with(tail)

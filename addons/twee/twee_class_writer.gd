@@ -31,6 +31,8 @@ func create(properties := {}, print_source := false) -> GDScript:
 
 func add_static_func(expr: String, returns := true) -> StringName:
 	var inpt := expr
+	REGEX_ROOT = RegEx.create_from_string(r'@(?=(?:[A-Za-z_]|[%~][A-Za-z_]))')
+	REGEX_NODE = RegEx.create_from_string(r'\^(?=(?:[A-Za-z_]|[%~][A-Za-z_]))')
 	expr = REGEX_ROOT.sub(expr, "root.", true)
 	expr = expr.replace("@", "root")
 	expr = REGEX_NODE.sub(expr, "node.", true)

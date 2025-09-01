@@ -70,8 +70,8 @@ func reload(node: Node):
 	var twee_class := ClassWriter.new()
 	_create_class(twee_class, pars)
 	var scr := twee_class.create({  }, print_source)
-	var twn := _create_tween(node, tween_prop, pars, node, scr)
 	set_twee_script(node, scr)
+	var twn := _create_tween(node, tween_prop, pars, node, scr)
 	return twn
 
 func set_twee_script(node: Node, script: GDScript):
@@ -159,7 +159,7 @@ func _create_tween(node: Node, tween_prop: Variant, steps: Array[Dictionary], ro
 						for i in args.size():
 							if i < sig_info.args.size():
 								var arg_info = sig_info.args[i]
-								get_twee_script(root).signal_args[arg_info.name] = args[i]
+								scr.signal_args[arg_info.name] = args[i]
 						_create_tween(node, tween_prop, step.children, root, scr)
 						)
 			Token.PARALLEL:
@@ -171,7 +171,7 @@ func _create_tween(node: Node, tween_prop: Variant, steps: Array[Dictionary], ro
 				_create_tween(node, twn, step.children, node, scr)
 			"METH":
 				if not twn: twn = _tween(node, tween_prop)
-				twn.tween_callback(get_twee_script(root).call.bind(step.meth, root, node))
+				twn.tween_callback(scr.call.bind(step.meth, root, node))
 			Token.LOOP:
 				if twn:
 					twn.set_loops(step.loop)
@@ -210,7 +210,7 @@ func _create_tween(node: Node, tween_prop: Variant, steps: Array[Dictionary], ro
 					if not prop in scr.initial_state[node]: scr.initial_state[node][prop] = value
 					sub.tween_callback(func():
 						var a := true_object.get_indexed(true_prop)
-						var b := get_twee_script(root).call(prop_info.val, root, node)
+						var b := scr.call(prop_info.val, root, node)
 						vars[prop + "_a"] = a
 						vars[prop + "_b"] = b if b != null else a)
 					pt = sub.tween_method(func(t: float):
@@ -257,7 +257,7 @@ func _create_tween(node: Node, tween_prop: Variant, steps: Array[Dictionary], ro
 						var op := get_object_and_property(node, prop)
 						var true_object: Object = op[0]
 						var true_prop: String = op[1]
-						var result: Variant = get_twee_script(root)[prop_info.val].call(root, node)
+						var result: Variant = scr[prop_info.val].call(root, node)
 						true_object.set_indexed(true_prop, result)
 						)
 	return twn
