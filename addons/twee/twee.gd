@@ -56,12 +56,15 @@ func pause(node: Node):
 
 #endregion
 
-func reload(node: Node):
+func reload(root: Node, for_child_node: Node = null):
 	if not code.strip_edges():
 		push_warning("Code was empty.")
 		return
 	
-	var tween_prop := _get_meta_key(node)
+	if not for_child_node:
+		for_child_node = root
+	
+	var tween_prop := _get_meta_key(root)
 	_properties = {}
 	
 	var toks := Tokenizer.tokenize(code)
@@ -70,8 +73,8 @@ func reload(node: Node):
 	var twee_class := ClassWriter.new()
 	_create_class(twee_class, pars)
 	var scr := twee_class.create({  }, print_source)
-	set_twee_script(node, scr)
-	var twn := _create_tween(node, tween_prop, pars, node, scr)
+	set_twee_script(root, scr)
+	var twn := _create_tween(root, tween_prop, pars, root, scr, for_child_node)
 	return twn
 
 func set_twee_script(node: Node, script: GDScript):
@@ -133,42 +136,42 @@ static func _create_class(class_writer: ClassWriter, steps: Array[Dictionary]):
 						prop_info.mutated = true
 						prop_info.val = class_writer.add_static_func(prop_info.val)
 
-func _create_tween(node: Node, tween_prop: Variant, steps: Array[Dictionary], root: Node, scr: GDScript) -> Tween:
+func _create_tween(node: Node, tween_prop: Variant, steps: Array[Dictionary], root: Node, scr: GDScript, for_child_node: Node) -> Tween:
 	var twn: Tween = null
 	for step in steps:
 		match step.type:
 			Token.FOR:
 				match step.args[0]:
 					Token.CHILD:
-						for subnode in node.get_children():
-							_create_tween(subnode, tween_prop, step.children, root, scr)
+						for subnode in for_child_node.get_children():
+							_create_tween(subnode, tween_prop, step.children, root, scr, for_child_node)
 					Token.GROUP:
 						for subnode in node.get_tree().get_nodes_in_group(step.args[1]):
-							_create_tween(subnode, tween_prop, step.children, root, scr)
+							_create_tween(subnode, tween_prop, step.children, root, scr, for_child_node)
 					Token.PROP:
-						for subnode in node[step.args[1]]:
+						for subnode in for_child_node[step.args[1]]:
 							if subnode:
-								_create_tween(subnode, tween_prop, step.children, root, scr)
+								_create_tween(subnode, tween_prop, step.children, root, scr, for_child_node)
 					Token.FIND:
-						for subnode in node.find_children(step.args[1], step.args[2]):
-							_create_tween(subnode, tween_prop, step.children, root, scr)
+						for subnode in for_child_node.find_children(step.args[1], step.args[2]):
+							_create_tween(subnode, tween_prop, step.children, root, scr, for_child_node)
 			Token.ON:
 				for signal_id in step.args:
-					root[signal_id].connect(func(...args):
-						var sig_info := get_signal_info(root, signal_id)
+					node[signal_id].connect(func(...args):
+						var sig_info := get_signal_info(node, signal_id)
 						for i in args.size():
 							if i < sig_info.args.size():
 								var arg_info = sig_info.args[i]
 								scr.signal_args[arg_info.name] = args[i]
-						_create_tween(node, tween_prop, step.children, root, scr)
+						_create_tween(node, tween_prop, step.children, root, scr, for_child_node)
 						)
 			Token.PARALLEL:
 				if not twn: twn = _tween(node, tween_prop)
 				twn.set_parallel()
-				_create_tween(node, twn, step.children, node, scr)
+				_create_tween(node, twn, step.children, node, scr, for_child_node)
 			Token.BLOCK:
 				if not twn: twn = _tween(node, tween_prop)
-				_create_tween(node, twn, step.children, node, scr)
+				_create_tween(node, twn, step.children, node, scr, for_child_node)
 			"METH":
 				if not twn: twn = _tween(node, tween_prop)
 				twn.tween_callback(scr.call.bind(step.meth, root, node))

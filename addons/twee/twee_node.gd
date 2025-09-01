@@ -4,10 +4,20 @@ class_name TweeNode extends Node
 
 signal event(str: String)
 
+## Primary node that @ will reference.
+@export var target: Node:
+	get: return target if target else self
+
+## Which node to loop for children on.
+@export var for_child_target: Node:
+	get: return for_child_target if for_child_target else self
+
+## Scripts to apply to the nodes.
 @export_storage var twees: Array[Twee] = [Twee.new()]:
 	set(t):
 		twees = t
 		notify_property_list_changed()
+
 @export_storage var playing := false
 @export_tool_button("Reload") var _tool_reload := reload
 @export_tool_button("Kill") var _tool_kill := kill
@@ -22,24 +32,24 @@ func _ready() -> void:
 func play():
 	playing = true
 	for twn in twees:
-		if twn and not twn.is_running(self):
-			twn.play(self)
+		if twn and not twn.is_running(target):
+			twn.play(target)
 
 func pause():
 	playing = false
 	for twn in twees:
-		if twn and twn.is_running(self):
-			twn.pause(self)
+		if twn and twn.is_running(target):
+			twn.pause(target)
 
 func reload():
 	playing = true
 	for twn in twees:
-		if twn: twn.reload(self)
+		if twn: twn.reload(target, for_child_target)
 
 func kill():
 	playing = false
 	for twn in twees:
-		if twn: twn.kill(self)
+		if twn: twn.kill(target)
 	for meta_key in get_meta_list():
 		if meta_key.begins_with("tweeny"):
 			set_meta(meta_key, null)
